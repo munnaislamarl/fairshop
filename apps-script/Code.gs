@@ -244,7 +244,21 @@ function requireAdmin(token) {
   return u;
 }
 
+function ensureSeedAdmin() {
+  if (readAll(SHEETS.USERS).length === 0) {
+    var rec = {
+      ID: uid(), Username: 'admin', Name: 'Admin', Role: 'admin', Shops: 'shop1,shop2',
+      PasswordHash: hashPw('admin', 'admin123'), Active: 'TRUE', Token: '', TokenExpiry: '',
+      CreatedAt: new Date(), UpdatedAt: new Date()
+    };
+    appendObject(SHEETS.USERS, rec);
+    var row = findById(SHEETS.USERS, rec.ID);
+    if (row) setTextCell(SHEETS.USERS, row.__row, 'PasswordHash', rec.PasswordHash);
+  }
+}
+
 function doLogin(d) {
+  ensureSeedAdmin();
   var username = String(d.username || d.Username || '').trim();
   var password = String(d.password || d.Password || '');
   if (!username || !password) throw new Error('Username and password required');
