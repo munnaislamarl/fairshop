@@ -45,6 +45,25 @@
   function findItem(id) { for (var i = 0; i < S.items.length; i++) if (String(S.items[i].ID) === String(id)) return S.items[i]; return null; }
   function findCustomer(id) { for (var i = 0; i < S.customers.length; i++) if (String(S.customers[i].ID) === String(id)) return S.customers[i]; return null; }
 
+  function normPhone(v) {
+    var s = String(v === undefined || v === null ? "" : v).trim();
+    if (!s) return "";
+    var digits = s.replace(/[^\d]/g, "");
+    if (digits.length === 10 && digits.charAt(0) !== "0") digits = "0" + digits;
+    return digits || s;
+  }
+  function fmtPhone(v) {
+    var s = String(v === undefined || v === null ? "" : v).trim();
+    if (/^\d{10}$/.test(s) && s.charAt(0) !== "0") return "0" + s;
+    return s;
+  }
+  function findCustomerByPhone(phone) {
+    var p = normPhone(phone);
+    if (!p) return null;
+    for (var i = 0; i < S.customers.length; i++) if (normPhone(S.customers[i].Phone) === p) return S.customers[i];
+    return null;
+  }
+
   /* ---------------- API wrapper ---------------- */
   function api(action, payload) {
     return Api.call(action, payload || {}).then(function (res) {
@@ -309,7 +328,9 @@
       "<div>" +
       '<div class="panel"><div class="panel-head"><h2>বিল / Cart</h2><button class="btn sm ghost" id="clearCart">পরিষ্কার</button></div><div class="panel-body" id="cartBox"></div></div>' +
       '<div class="panel"><div class="panel-head"><h2>চেকআউট / Checkout</h2></div><div class="panel-body">' +
-      '<div class="field"><label>ক্রেতা / Customer</label><select id="saleCustomer"></select></div>' +
+      '<div class="form-grid"><div class="field"><label>ফোন নম্বর / Phone *</label><input id="salePhone" inputmode="numeric" autocomplete="off" placeholder="01XXXXXXXXX"></div>' +
+      '<div class="field"><label>নাম / Name (ঐচ্ছিক)</label><input id="saleName" autocomplete="off" placeholder="ক্রেতার নাম"></div></div>' +
+      '<div id="phoneHint" class="cust-hint"></div>' +
       '<div class="field"><label>পেমেন্ট / Payment</label><div class="pay-toggle"><button id="payCash" class="active">নগদ Cash</button><button id="payCredit" class="credit">বাকি Credit</button></div></div>' +
       '<div class="form-grid"><div class="field"><label>ডিসকাউন্ট / Discount</label><input type="number" id="saleDiscount" min="0" step="0.01" value="0"></div>' +
       '<div class="field" id="paidWrap" style="display:none"><label>পরিশোধ / Paid</label><input type="number" id="salePaid" min="0" step="0.01" value="0"></div></div>' +
@@ -320,10 +341,9 @@
       '<button class="btn green" id="savePrint" style="flex:1">Save + Print</button>' +
       "</div></div></div></div></div>";
 
-    // customer options
-    var custSel = $("#saleCustomer");
-    custSel.innerHTML = '<option value="">Walk-in / খুচরা ক্রেতা</option>' +
-      S.customers.map(function (c) { return '<option value="' + esc(c.ID) + '">' + esc(c.Name) + (num(c.Due) > 0 ? " (due " + money0(c.Due) + ")" : "") + "</option>"; }).join("");
+    // customer info (phone mandatory, name optional, auto-fill from phone)
+    $("#salePhone").addEventListener("input", onSalePhoneInput);
+    $("#salePhone").addEventListener("change", onSalePhoneInput);
 
     renderItemGrid("");
     $("#saleSearch").addEventListener("input", function () { renderItemGrid(this.value); });
@@ -339,6 +359,26 @@
 
     updatePayUI();
     renderCart();
+  }
+
+  function onSalePhoneInput() {
+    var phoneEl = $("#salePhone"), hint = $("#phoneHint"), nameEl = $("#saleName");
+    if (!phoneEl) return;
+    var phone = normPhone(phoneEl.value);
+    if (!phone) {
+      if (hint) { hint.textContent = ""; hint.className = "cust-hint"; }
+      return;
+    }
+    var c = findCustomerByPhone(phone);
+    if (c) {
+      if (nameEl && c.Name) nameEl.value = c.Name;
+      if (hint) {
+        hint.textContent = "পুরনো ক্রেতা / Existing: " + (c.Name || "(নাম নেই)") + (num(c.Due) > 0 ? " • বাকি " + money(c.Due) : "");
+        hint.className = "cust-hint";
+      }
+    } else {
+      if (hint) { hint.textContent = "নতুন ক্রেতা — সংরক্ষণে স্বয়ংক্রিয়ভাবে যুক্ত হবে"; hint.className = "cust-hint new"; }
+    }
   }
 
   function renderItemGrid(query) {
@@ -385,7 +425,7 @@
       return "<tr>" +
         "<td>" + esc(l.itemName) + "</td>" +
         '<td><input class="qty-inline" type="number" min="1" step="1" value="' + num(l.qty) + '" data-qty="' + idx + '"></td>' +
-        '<td><input class="qty-inline" style="width:88px" type="number" min="0" step="0.01" value="' + num(l.unitPrice) + '" data-price="' + idx + '"></td>' +
+        '<td class="num">' + money(l.unitPrice) + "</td>" +
         '<td class="num">' + money(num(l.qty) * num(l.unitPrice)) + "</td>" +
         '<td><button class="icon-btn" data-del="' + idx + '" title="Remove">✕</button></td>' +
         "</tr>";
@@ -394,9 +434,6 @@
 
     $$("[data-qty]", box).forEach(function (inp) {
       inp.onchange = function () { var i = num(this.getAttribute("data-qty")); S.cart[i].qty = Math.max(num(this.value), 1); renderCart(); };
-    });
-    $$("[data-price]", box).forEach(function (inp) {
-      inp.onchange = function () { var i = num(this.getAttribute("data-price")); S.cart[i].unitPrice = Math.max(num(this.value), 0); renderCart(); };
     });
     $$("[data-del]", box).forEach(function (btn) {
       btn.onclick = function () { S.cart.splice(num(this.getAttribute("data-del")), 1); renderCart(); };
@@ -439,20 +476,43 @@
 
   function saveSale(doPrint) {
     if (!S.cart.length) { toast("বিল খালি — পণ্য যোগ করুন।", "err"); return; }
-    var custId = $("#saleCustomer").value;
-    var cust = findCustomer(custId);
-    var payload = {
-      customerId: custId,
-      customerName: cust ? cust.Name : "Walk-in / খুচরা ক্রেতা",
-      items: S.cart.map(function (l) { return { itemId: l.itemId, itemName: l.itemName, qty: num(l.qty), unitPrice: num(l.unitPrice) }; }),
-      discount: num($("#saleDiscount").value),
-      paymentType: S.payType,
-      paidAmount: S.payType === "Credit" ? num($("#salePaid").value) : 0,
-      notes: $("#saleNote").value
-    };
+    var phone = normPhone($("#salePhone").value);
+    if (!phone) { toast("ফোন নম্বর দিতে হবে / Phone number is required", "err"); $("#salePhone").focus(); return; }
+    var name = $("#saleName").value.trim();
+
+    var payloadItems = S.cart.map(function (l) { return { itemId: l.itemId, itemName: l.itemName, qty: num(l.qty), unitPrice: num(l.unitPrice) }; });
+    var discount = num($("#saleDiscount").value);
+    var payType = S.payType;
+    var paidAmount = S.payType === "Credit" ? num($("#salePaid").value) : 0;
+    var notes = $("#saleNote").value;
+
     var btns = $$("#saveSale, #savePrint");
     btns.forEach(function (b) { b.disabled = true; });
-    api("createSale", payload).then(function (res) {
+
+    var existing = findCustomerByPhone(phone);
+    var prep;
+    if (existing) {
+      if (name && name !== existing.Name) {
+        prep = api("saveCustomer", { ID: existing.ID, Name: name, Phone: phone, Address: existing.Address || "", Notes: existing.Notes || "" })
+          .then(function () { return existing.ID; });
+      } else {
+        prep = Promise.resolve(existing.ID);
+      }
+    } else {
+      prep = api("saveCustomer", { Name: name, Phone: phone }).then(function (res) { return res.id; });
+    }
+
+    prep.then(function (customerId) {
+      return api("createSale", {
+        customerId: customerId,
+        customerName: name || (existing ? existing.Name : "") || phone,
+        items: payloadItems,
+        discount: discount,
+        paymentType: payType,
+        paidAmount: paidAmount,
+        notes: notes
+      });
+    }).then(function (res) {
       toast("বিক্রয় সংরক্ষিত — Invoice " + res.invoiceNo, "ok");
       S.cart = [];
       S.payType = "Cash";
@@ -639,12 +699,14 @@
   function viewSale(id) {
     var s = saleById(id);
     if (!s) return;
+    var cust = s.CustomerID ? findCustomer(s.CustomerID) : null;
     var rows = (s.items || []).map(function (it) {
       return "<tr><td>" + esc(it.ItemName) + '</td><td class="num">' + num(it.Qty) + '</td><td class="num">' + money(it.UnitPrice) + '</td><td class="num">' + money(it.LineTotal) + "</td></tr>";
     }).join("");
     var body =
       '<div class="form-grid"><div><b>Invoice:</b> ' + esc(s.InvoiceNo) + "</div><div><b>Date:</b> " + fmtDateTime(s.DateTime) + "</div>" +
-      "<div><b>Customer:</b> " + esc(s.CustomerName || "-") + "</div><div><b>Payment:</b> " + payBadge(s.PaymentType) + "</div></div>" +
+      "<div><b>Customer:</b> " + esc(s.CustomerName || "-") + "</div><div><b>Phone:</b> " + esc(cust && cust.Phone ? fmtPhone(cust.Phone) : "-") + "</div>" +
+      "<div><b>Payment:</b> " + payBadge(s.PaymentType) + "</div></div>" +
       '<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Total</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
       '<div class="cart-total" style="margin-top:12px"><span>Subtotal</span><b>' + money(s.SubTotal) + "</b></div>" +
       '<div class="cart-total"><span>Discount</span><b>− ' + money(s.Discount) + "</b></div>" +
@@ -698,14 +760,14 @@
     if (!tbody) return;
     var list = S.customers.filter(function (c) {
       if (!q) return true;
-      return (String(c.Name) + " " + String(c.Phone)).toLowerCase().indexOf(q) >= 0;
+      return (String(c.Name) + " " + String(c.Phone) + " " + normPhone(c.Phone)).toLowerCase().indexOf(q) >= 0;
     });
     if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">কোনো ক্রেতা নেই / No customers</td></tr>'; return; }
     tbody.innerHTML = list.map(function (c) {
       var due = num(c.Due);
       return "<tr>" +
-        "<td><b>" + esc(c.Name) + "</b></td>" +
-        "<td>" + esc(c.Phone || "-") + "</td>" +
+        "<td><b>" + esc(c.Name || "(নাম নেই)") + "</b></td>" +
+        "<td>" + esc(c.Phone ? fmtPhone(c.Phone) : "-") + "</td>" +
         "<td>" + esc(c.Address || "-") + "</td>" +
         '<td class="num">' + (due > 0 ? '<span class="badge due">' + money(due) + "</span>" : "—") + "</td>" +
         '<td style="white-space:nowrap">' +
@@ -729,8 +791,8 @@
   function customerForm(c) {
     c = c || {};
     var body = '<div class="form-grid">' +
-      '<div class="field full"><label>নাম / Name *</label><input id="cName" value="' + esc(c.Name || "") + '"></div>' +
-      '<div class="field"><label>ফোন / Phone</label><input id="cPhone" value="' + esc(c.Phone || "") + '"></div>' +
+      '<div class="field"><label>ফোন / Phone *</label><input id="cPhone" inputmode="numeric" value="' + esc(c.Phone ? fmtPhone(c.Phone) : "") + '"></div>' +
+      '<div class="field"><label>নাম / Name (ঐচ্ছিক)</label><input id="cName" value="' + esc(c.Name || "") + '"></div>' +
       '<div class="field"><label>ঠিকানা / Address</label><input id="cAddr" value="' + esc(c.Address || "") + '"></div>' +
       (c.ID ? "" : '<div class="field"><label>প্রাথমিক বাকি / Opening due</label><input type="number" step="0.01" id="cDue" value="0"></div>') +
       '<div class="field full"><label>নোট / Notes</label><input id="cNotes" value="' + esc(c.Notes || "") + '"></div></div>';
@@ -738,9 +800,9 @@
       footer: '<button class="btn" data-close>বাতিল</button><button class="btn primary" id="saveCustBtn">সংরক্ষণ</button>',
       onOpen: function () {
         $("#saveCustBtn").onclick = function () {
-          var name = $("#cName").value.trim();
-          if (!name) { toast("নাম দিতে হবে", "err"); return; }
-          var payload = { ID: c.ID || "", Name: name, Phone: $("#cPhone").value.trim(), Address: $("#cAddr").value.trim(), Notes: $("#cNotes").value.trim() };
+          var phone = normPhone($("#cPhone").value);
+          if (!phone) { toast("ফোন নম্বর দিতে হবে / Phone required", "err"); return; }
+          var payload = { ID: c.ID || "", Name: $("#cName").value.trim(), Phone: phone, Address: $("#cAddr").value.trim(), Notes: $("#cNotes").value.trim() };
           if (!c.ID) payload.Due = num($("#cDue").value);
           api("saveCustomer", payload).then(function () { closeModal(); toast("সংরক্ষিত", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
         };
@@ -963,6 +1025,8 @@
    * ============================================================ */
   function printInvoice(s) {
     var shop = S.settings.ShopName || cfg().SHOP_NAME || "Fai Shop";
+    var cust = s.CustomerID ? findCustomer(s.CustomerID) : null;
+    var custPhone = cust && cust.Phone ? fmtPhone(cust.Phone) : "";
     var rows = (s.items || []).map(function (it, i) {
       return "<tr><td>" + (i + 1) + "</td><td>" + esc(it.ItemName) + '</td><td class="num">' + num(it.Qty) + '</td><td class="num">' + money(it.UnitPrice) + '</td><td class="num">' + money(it.LineTotal) + "</td></tr>";
     }).join("");
@@ -974,7 +1038,9 @@
       (S.settings.Phone ? "<div>☎ " + esc(S.settings.Phone) + "</div>" : "") +
       (S.settings.Email ? "<div>" + esc(S.settings.Email) + "</div>" : "") +
       '</div><div class="meta"><div><b>INVOICE</b></div><div>No: ' + esc(s.InvoiceNo) + "</div><div>Date: " + fmtDateTime(s.DateTime) + "</div>" +
-      "<div>Customer: " + esc(s.CustomerName || "Walk-in") + "</div></div></div>" +
+      "<div>Customer: " + esc(s.CustomerName || "Walk-in") + "</div>" +
+      (custPhone ? "<div>Phone: " + esc(custPhone) + "</div>" : "") +
+      "</div></div>" +
       '<table><thead><tr><th>#</th><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>' + rows + "</tbody></table>" +
       '<div class="inv-totals">' +
       "<div><span>Subtotal</span><span>" + money(s.SubTotal) + "</span></div>" +

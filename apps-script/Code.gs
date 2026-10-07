@@ -125,6 +125,15 @@ function setCell(name, rowIndex, header, value) {
   getSheet(name).getRange(rowIndex, col).setValue(value);
 }
 
+// Write a value as plain text so leading zeros are preserved (e.g. phone numbers, item codes)
+function setTextCell(name, rowIndex, header, value) {
+  var col = HEADERS[name].indexOf(header) + 1;
+  if (col < 1) return;
+  var cell = getSheet(name).getRange(rowIndex, col);
+  cell.setNumberFormat('@');
+  cell.setValue(value === undefined || value === null ? '' : String(value));
+}
+
 function updateObject(name, id, patch) {
   var row = findById(name, id);
   if (!row) throw new Error('Record not found: ' + id);
@@ -261,12 +270,15 @@ function saveItem(d) {
   if (d.ID) {
     rec.UpdatedAt = now;
     updateObject(SHEETS.ITEMS, d.ID, rec);
-    return { ok: true, id: d.ID };
+  } else {
+    rec.ID = uid();
+    rec.CreatedAt = now;
+    rec.UpdatedAt = now;
+    appendObject(SHEETS.ITEMS, rec);
   }
-  rec.ID = uid();
-  rec.CreatedAt = now;
-  rec.UpdatedAt = now;
-  appendObject(SHEETS.ITEMS, rec);
+  // keep Code as text so leading zeros survive
+  var row = findById(SHEETS.ITEMS, rec.ID);
+  if (row) setTextCell(SHEETS.ITEMS, row.__row, 'Code', rec.Code);
   return { ok: true, id: rec.ID };
 }
 
@@ -284,13 +296,16 @@ function saveCustomer(d) {
   if (d.ID) {
     rec.UpdatedAt = now;
     updateObject(SHEETS.CUSTOMERS, d.ID, rec);
-    return { ok: true, id: d.ID };
+  } else {
+    rec.ID = uid();
+    rec.Due = num(d.Due);
+    rec.CreatedAt = now;
+    rec.UpdatedAt = now;
+    appendObject(SHEETS.CUSTOMERS, rec);
   }
-  rec.ID = uid();
-  rec.Due = num(d.Due);
-  rec.CreatedAt = now;
-  rec.UpdatedAt = now;
-  appendObject(SHEETS.CUSTOMERS, rec);
+  // keep Phone as text so leading zeros survive
+  var row = findById(SHEETS.CUSTOMERS, rec.ID);
+  if (row) setTextCell(SHEETS.CUSTOMERS, row.__row, 'Phone', rec.Phone);
   return { ok: true, id: rec.ID };
 }
 

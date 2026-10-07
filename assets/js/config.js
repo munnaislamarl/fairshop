@@ -1,8 +1,8 @@
-/* ============================================================
+﻿/* ============================================================
  *  Fai Shop Dashboard — Configuration
- *  ১) নিচের API_URL এ আপনার Google Apps Script Web App URL বসান
- *     (Apps Script > Deploy > New deployment > Web app > /exec URL)
- *  ২) SHOP_NAME / CURRENCY ইচ্ছেমতো বদলাতে পারেন
+ *  1) Put your Google Apps Script Web App /exec URL in API_URL
+ *     (Apps Script > Deploy > New deployment > Web app > /exec)
+ *  2) You can change SHOP_NAME / CURRENCY any time
  * ============================================================ */
 window.SHOP_CONFIG = {
   // Example: "https://script.google.com/macros/s/AKfycb....../exec"
