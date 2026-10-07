@@ -29,6 +29,28 @@
     });
   }
   function cfg() { return window.SHOP_CONFIG || {}; }
+  function getShops() {
+    var list = cfg().SHOPS;
+    if (!list || !list.length) return [{ id: "default", name: cfg().SHOP_NAME || "Fai Shop", apiUrl: cfg().API_URL || "" }];
+    return list;
+  }
+  function getActiveShopId() {
+    var list = getShops();
+    var id = null;
+    try { id = localStorage.getItem("fai_active_shop"); } catch (e) {}
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return id;
+    return list.length ? list[0].id : "default";
+  }
+  function getActiveShop() {
+    var id = getActiveShopId(), list = getShops();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return list[0] || null;
+  }
+  function applyActiveShop() {
+    var s = getActiveShop();
+    window.SHOP_CONFIG.API_URL = (s && s.apiUrl) ? s.apiUrl : "";
+    return s;
+  }
   function currency() { return S.settings.Currency || cfg().CURRENCY || "৳"; }
   function money(v) {
     return currency() + " " + num(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1079,6 +1101,38 @@
     $("#clock").textContent = fmtDate(d) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
   }
 
+  function setupShopSwitcher() {
+    var wrap = $("#shopSwitchWrap");
+    if (!wrap) return;
+    var list = getShops();
+    if (list.length < 2) { wrap.hidden = true; wrap.innerHTML = ""; return; }
+    wrap.hidden = false;
+    var sel = document.createElement("select");
+    sel.id = "shopSwitch";
+    sel.className = "shop-select";
+    sel.title = "দোকান বাছুন / Switch shop";
+    list.forEach(function (s) {
+      var o = document.createElement("option");
+      o.value = s.id;
+      o.textContent = s.name || s.id;
+      sel.appendChild(o);
+    });
+    sel.value = getActiveShopId();
+    sel.onchange = function () {
+      var chosen = this.value;
+      try { localStorage.setItem("fai_active_shop", chosen); } catch (e) {}
+      applyActiveShop();
+      S.loaded = false;
+      S.items = []; S.customers = []; S.sales = []; S.payments = []; S.settings = {};
+      applyBranding();
+      setConnected(false);
+      $("#view").innerHTML = '<div class="spinner"></div>';
+      loadAll();
+    };
+    wrap.innerHTML = "";
+    wrap.appendChild(sel);
+  }
+
   function init() {
     $$(".nav a").forEach(function (a) {
       a.addEventListener("click", function (e) { e.preventDefault(); setPage(this.getAttribute("data-nav")); });
@@ -1101,6 +1155,8 @@
     $("#view").innerHTML = '<div class="spinner"></div>';
     tickClock();
     setInterval(tickClock, 1000);
+    applyActiveShop();
+    setupShopSwitcher();
     loadAll();
 
     var ars = num(cfg().AUTO_REFRESH_SECONDS);

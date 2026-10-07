@@ -1,18 +1,32 @@
 ﻿/* ============================================================
- *  Fai Shop Dashboard — Configuration
- *  1) Put your Google Apps Script Web App /exec URL in API_URL
- *     (Apps Script > Deploy > New deployment > Web app > /exec)
- *  2) You can change SHOP_NAME / CURRENCY any time
+ *  Fai Shop Dashboard — Configuration (Multi-shop)
+ *  * Each shop has its OWN Google Sheet + Apps Script /exec URL.
+ *  * Add one entry per shop in the SHOPS list below.
+ *  * A "shop switcher" dropdown shows on top when 2+ shops exist.
  * ============================================================ */
 window.SHOP_CONFIG = {
-  // Example: "https://script.google.com/macros/s/AKfycb....../exec"
-  API_URL: "https://script.google.com/macros/s/AKfycbzXRSrHKavk1Ayiz_mmrWNuYU5AdR94MCC3z_5nxIz7U0c30hYCByUXGwHlNJawPpuR/exec",
+  SHOPS: [
+    {
+      id: "shop1",
+      name: "Fair Shop 1",
+      // Shop 1 Apps Script Web App /exec URL
+      apiUrl: "https://script.google.com/macros/s/AKfycbzXRSrHKavk1Ayiz_mmrWNuYU5AdR94MCC3z_5nxIz7U0c30hYCByUXGwHlNJawPpuR/exec"
+    },
+    {
+      id: "shop2",
+      name: "Fair Shop 2",
+      // Shop 2 Apps Script Web App /exec URL — paste it here when ready
+      apiUrl: ""
+    }
+  ],
 
-  SHOP_NAME: "Fai Shop",
+  // Fallback single-shop URL (used only if SHOPS is empty)
+  API_URL: "",
+
+  SHOP_NAME: "Fair Shop",
   CURRENCY: "৳",
   CURRENCY_CODE: "BDT",
 
-  // Fallback low-stock threshold (used before settings load)
   LOW_STOCK_DEFAULT: 5,
   INVOICE_PREFIX: "INV",
 
