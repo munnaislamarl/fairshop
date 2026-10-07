@@ -1272,8 +1272,8 @@
     var app = $("#app"); if (app) app.style.display = "none";
     var ls = $("#loginScreen"); if (ls) ls.hidden = false;
     var nameEl = $("#loginShopName");
-    var shops = allShops();
-    if (nameEl) nameEl.textContent = (shops[0] && shops[0].name) || cfg().SHOP_NAME || "Fair Shop";
+    if (nameEl) nameEl.textContent = cfg().LOGIN_TITLE || cfg().SHOP_NAME || "Fair Shop";
+    document.title = cfg().LOGIN_TITLE || cfg().SHOP_NAME || "Fair Shop";
     var u = $("#loginUser"); if (u) u.focus();
   }
   function hideLogin() {
