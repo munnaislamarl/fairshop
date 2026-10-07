@@ -20,7 +20,8 @@ var SHEETS = {
   SALES: 'Sales',
   SALE_ITEMS: 'SaleItems',
   PAYMENTS: 'Payments',
-  SETTINGS: 'Settings'
+  SETTINGS: 'Settings',
+  USERS: 'Users'
 };
 
 var HEADERS = {
@@ -29,7 +30,8 @@ var HEADERS = {
   Sales:     ['ID','InvoiceNo','DateTime','CustomerID','CustomerName','SubTotal','Discount','Total','PaymentType','PaidAmount','DueAmount','Notes','CreatedBy'],
   SaleItems: ['ID','SaleID','ItemID','ItemName','Qty','UnitPrice','LineTotal'],
   Payments:  ['ID','DateTime','CustomerID','CustomerName','Amount','Method','Note'],
-  Settings:  ['Key','Value']
+  Settings:  ['Key','Value'],
+  Users:     ['ID','Username','Name','Role','Shops','PasswordHash','Active','Token','TokenExpiry','CreatedAt','UpdatedAt']
 };
 
 var DEFAULT_SETTINGS = {
@@ -52,7 +54,23 @@ function setup() {
   Object.keys(DEFAULT_SETTINGS).forEach(function (key) {
     if (current[key] === undefined) sh.appendRow([key, DEFAULT_SETTINGS[key]]);
   });
-  Logger.log('Setup complete. Now Deploy > New deployment > Web app.');
+  // seed a default admin user (change the password after first login!)
+  if (readAll(SHEETS.USERS).length === 0) {
+    appendObject(SHEETS.USERS, {
+      ID: uid(),
+      Username: 'admin',
+      Name: 'Admin',
+      Role: 'admin',
+      Shops: 'shop1,shop2',
+      PasswordHash: hashPw('admin', 'admin123'),
+      Active: 'TRUE',
+      Token: '',
+      TokenExpiry: '',
+      CreatedAt: new Date(),
+      UpdatedAt: new Date()
+    });
+  }
+  Logger.log('Setup complete. Default login -> admin / admin123');
 }
 
 /* ---------------------------------------------------------------
@@ -173,6 +191,129 @@ function getSetting(key) {
 }
 
 /* ---------------------------------------------------------------
+ *  Auth (users / roles / per-shop access)
+ * --------------------------------------------------------------- */
+var AUTH_SALT = 'fai-shop-2026-secret';
+
+function hashPw(username, password) {
+  var raw = String(username).toLowerCase() + '::' + String(password) + '::' + AUTH_SALT;
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
+  return digest.map(function (b) {
+    var v = (b < 0 ? b + 256 : b).toString(16);
+    return v.length === 1 ? '0' + v : v;
+  }).join('');
+}
+
+function parseShops(s) {
+  return String(s || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; });
+}
+
+function publicUser(u) {
+  return {
+    id: u.ID,
+    username: u.Username,
+    name: u.Name || u.Username,
+    role: String(u.Role || 'user').toLowerCase(),
+    shops: parseShops(u.Shops),
+    active: String(u.Active).toUpperCase() !== 'FALSE'
+  };
+}
+
+function authenticate(username, password) {
+  var users = readAll(SHEETS.USERS);
+  var u = null;
+  users.forEach(function (x) {
+    if (String(x.Username).toLowerCase() === String(username).toLowerCase()) u = x;
+  });
+  if (!u) return null;
+  if (String(u.Active).toUpperCase() === 'FALSE') return null;
+  if (String(u.PasswordHash) !== hashPw(u.Username, password)) return null;
+  return u;
+}
+
+function requireAdmin(token) {
+  var users = readAll(SHEETS.USERS);
+  var u = null;
+  users.forEach(function (x) { if (token && String(x.Token) === String(token)) u = x; });
+  if (!u) throw new Error('Not logged in / session expired');
+  if (u.TokenExpiry) {
+    var exp = new Date(u.TokenExpiry);
+    if (!isNaN(exp.getTime()) && exp.getTime() < Date.now()) throw new Error('Session expired');
+  }
+  if (String(u.Role).toLowerCase() !== 'admin') throw new Error('Admin only');
+  return u;
+}
+
+function doLogin(d) {
+  var username = String(d.username || d.Username || '').trim();
+  var password = String(d.password || d.Password || '');
+  if (!username || !password) throw new Error('Username and password required');
+  var u = authenticate(username, password);
+  if (!u) throw new Error('ভুল username বা password');
+  var token = uid();
+  var expiry = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+  updateObject(SHEETS.USERS, u.ID, { Token: token, TokenExpiry: expiry, UpdatedAt: new Date() });
+  var urow = findById(SHEETS.USERS, u.ID);
+  if (urow) setTextCell(SHEETS.USERS, urow.__row, 'Token', token);
+  return { ok: true, token: token, user: publicUser(u) };
+}
+
+function listUsers(d) {
+  requireAdmin(d.token);
+  return { ok: true, users: readAll(SHEETS.USERS).map(publicUser) };
+}
+
+function saveUser(d) {
+  requireAdmin(d.token);
+  var username = String(d.Username || '').trim();
+  if (!username) throw new Error('Username required');
+  var users = readAll(SHEETS.USERS);
+  var dup = false;
+  users.forEach(function (u) {
+    if (String(u.Username).toLowerCase() === username.toLowerCase() && String(u.ID) !== String(d.ID)) dup = true;
+  });
+  if (dup) throw new Error('এই username আগেই আছে');
+  var shops = Array.isArray(d.Shops) ? d.Shops.join(',') : String(d.Shops || '');
+  var active = (d.Active === false) ? 'FALSE' : (String(d.Active === undefined ? 'TRUE' : d.Active).toUpperCase() === 'FALSE' ? 'FALSE' : 'TRUE');
+  if (d.ID) {
+    var cur = findById(SHEETS.USERS, d.ID);
+    if (cur && String(cur.Username).toLowerCase() !== username.toLowerCase()) {
+      throw new Error('Username বদলানো যাবে না (নতুন করে বানান)');
+    }
+    var rec = { Name: d.Name || '', Role: d.Role || 'user', Shops: shops, Active: active, UpdatedAt: new Date() };
+    if (d.Password) rec.PasswordHash = hashPw(username, d.Password);
+    updateObject(SHEETS.USERS, d.ID, rec);
+    var r1 = findById(SHEETS.USERS, d.ID);
+    if (r1 && rec.PasswordHash) setTextCell(SHEETS.USERS, r1.__row, 'PasswordHash', rec.PasswordHash);
+    return { ok: true, id: d.ID };
+  }
+  if (!d.Password) throw new Error('নতুন ইউজারের password দিতে হবে');
+  var rec2 = {
+    ID: uid(), Username: username, Name: d.Name || '', Role: d.Role || 'user', Shops: shops,
+    PasswordHash: hashPw(username, d.Password), Active: active, Token: '', TokenExpiry: '',
+    CreatedAt: new Date(), UpdatedAt: new Date()
+  };
+  appendObject(SHEETS.USERS, rec2);
+  var r2 = findById(SHEETS.USERS, rec2.ID);
+  if (r2) setTextCell(SHEETS.USERS, r2.__row, 'PasswordHash', rec2.PasswordHash);
+  return { ok: true, id: rec2.ID };
+}
+
+function deleteUser(d) {
+  var admin = requireAdmin(d.token);
+  if (String(d.ID) === String(admin.ID)) throw new Error('নিজের account মুছবেন না');
+  var users = readAll(SHEETS.USERS);
+  var target = null;
+  users.forEach(function (u) { if (String(u.ID) === String(d.ID)) target = u; });
+  if (target && String(target.Role).toLowerCase() === 'admin') {
+    var admins = users.filter(function (u) { return String(u.Role).toLowerCase() === 'admin'; });
+    if (admins.length <= 1) throw new Error('শেষ admin account মুছবেন না');
+  }
+  deleteObject(SHEETS.USERS, d.ID);
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------
  *  HTTP entry points
  * --------------------------------------------------------------- */
 function doGet(e) {
@@ -223,6 +364,10 @@ function route(action, data) {
     case 'addPayment':    return addPayment(data);
     case 'deletePayment': return deletePayment(data.id);
     case 'saveSettings':  return saveSettings(data);
+    case 'login':         return doLogin(data);
+    case 'listUsers':     return listUsers(data);
+    case 'saveUser':      return saveUser(data);
+    case 'deleteUser':    return deleteUser(data);
     default:              return { ok: false, error: 'Unknown action: ' + action };
   }
 }

@@ -29,6 +29,7 @@
         <a href="#payments" data-nav="payments"><span class="ico">৳</span><span>Payments<small>পেমেন্ট / বাকি</small></span></a>
         <a href="#reports" data-nav="reports"><span class="ico">◔</span><span>Reports<small>রিপোর্ট</small></span></a>
         <a href="#settings" data-nav="settings"><span class="ico">⚙</span><span>Settings<small>সেটিংস</small></span></a>
+        <a href="#users" data-nav="users" id="usersNav" hidden><span class="ico">☷</span><span>Users<small>ইউজার ম্যানেজমেন্ট</small></span></a>
       </nav>
       <div class="sidebar-foot">
         <span class="dot" id="connDot"></span>
@@ -43,11 +44,29 @@
         <div class="topbar-right">
           <div id="shopSwitchWrap" class="shop-switch" hidden></div>
           <span class="clock" id="clock"></span>
+          <span class="who" id="whoAmI"></span>
+          <button class="btn ghost" id="logoutBtn" title="Logout">Logout</button>
           <button class="btn ghost" id="refreshBtn" title="Refresh">⟳ Refresh</button>
         </div>
       </header>
 
       <main id="view" class="view"></main>
+    </div>
+  </div>
+
+  <!-- Login -->
+  <div id="loginScreen" class="login-screen" hidden>
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-mark">FS</div>
+        <strong id="loginShopName">Fair Shop</strong>
+      </div>
+      <h2>লগইন / Login</h2>
+      <div class="field"><label>ইউজারনেম / Username</label><input id="loginUser" autocomplete="username" spellcheck="false"></div>
+      <div class="field"><label>পাসওয়ার্ড / Password</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+      <div id="loginError" class="login-error"></div>
+      <button class="btn primary" id="loginBtn" style="width:100%">লগইন / Login</button>
+      <p class="login-hint">প্রথমবার ডিফল্ট — <b>admin / admin123</b> (পরে বদলে নিন)</p>
     </div>
   </div>
 

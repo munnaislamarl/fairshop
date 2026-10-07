@@ -1,24 +1,26 @@
 ﻿/* ============================================================
- *  Fai Shop Dashboard — Configuration (Multi-shop)
+ *  Fai Shop Dashboard — Configuration (Multi-shop + Login)
  *  * Each shop has its OWN Google Sheet + Apps Script /exec URL.
- *  * Add one entry per shop in the SHOPS list below.
- *  * A "shop switcher" dropdown shows on top when 2+ shops exist.
+ *  * Users are managed inside the dashboard (Users page, admin).
  * ============================================================ */
 window.SHOP_CONFIG = {
   SHOPS: [
     {
       id: "shop1",
-      name: "Fair Shop 1",
+      name: "Rakib Store",
       // Shop 1 Apps Script Web App /exec URL
       apiUrl: "https://script.google.com/macros/s/AKfycbzXRSrHKavk1Ayiz_mmrWNuYU5AdR94MCC3z_5nxIz7U0c30hYCByUXGwHlNJawPpuR/exec"
     },
     {
       id: "shop2",
-      name: "Fair Shop 2",
+      name: "Anis Store",
       // Shop 2 Apps Script Web App /exec URL
       apiUrl: "https://script.google.com/macros/s/AKfycby-QXlEmiou2wcLDKiRGTNwajdVwLDVjdWzWT08gEyPU3CxH2NawnDJuWDHNZ9S96QG/exec"
     }
   ],
+
+  // Login + user management uses this shop's Apps Script as the control server.
+  AUTH: { enabled: true, controlShopId: "shop1" },
 
   // Fallback single-shop URL (used only if SHOPS is empty)
   API_URL: "",

@@ -15,7 +15,9 @@
     cart: [],
     payType: "Cash",
     charts: {},
-    loaded: false
+    loaded: false,
+    user: null,
+    token: null
   };
 
   /* ---------------- Helpers ---------------- */
@@ -29,11 +31,27 @@
     });
   }
   function cfg() { return window.SHOP_CONFIG || {}; }
-  function getShops() {
+  function allShops() {
     var list = cfg().SHOPS;
-    if (!list || !list.length) return [{ id: "default", name: cfg().SHOP_NAME || "Fai Shop", apiUrl: cfg().API_URL || "" }];
+    if (!list || !list.length) return [{ id: "default", name: cfg().SHOP_NAME || "Fair Shop", apiUrl: cfg().API_URL || "" }];
     return list;
   }
+  function getShops() {
+    var all = allShops();
+    if (!S.user || !S.user.shops || !S.user.shops.length) return all;
+    var allowed = all.filter(function (s) { return S.user.shops.indexOf(s.id) >= 0; });
+    return allowed.length ? allowed : all;
+  }
+  function authEnabled() { return !!(cfg().AUTH && cfg().AUTH.enabled !== false); }
+  function controlUrl() {
+    var id = (cfg().AUTH && cfg().AUTH.controlShopId) || "";
+    var all = allShops();
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i].apiUrl;
+    return all[0] ? all[0].apiUrl : "";
+  }
+  function getSession() { try { return JSON.parse(localStorage.getItem("fai_session") || "null"); } catch (e) { return null; } }
+  function setSession(s) { try { localStorage.setItem("fai_session", JSON.stringify(s)); } catch (e) {} }
+  function clearSession() { try { localStorage.removeItem("fai_session"); } catch (e) {} }
   function getActiveShopId() {
     var list = getShops();
     var id = null;
@@ -143,6 +161,15 @@
   }
 
   /* ---------------- Load ---------------- */
+  function applyData(res) {
+    S.settings = res.settings || {};
+    S.items = res.items || [];
+    S.customers = res.customers || [];
+    S.sales = res.sales || [];
+    S.payments = res.payments || [];
+  }
+  function cacheKey() { var s = getActiveShop(); return "fai_cache_" + (s ? s.id : "default"); }
+
   function loadAll(silent) {
     if (!Api.configured()) {
       $("#configWarning").hidden = false;
@@ -150,16 +177,29 @@
       renderConfigError();
       return Promise.resolve();
     }
+    // instant paint from cache (makes it feel fast)
+    if (!S.loaded) {
+      try {
+        var cached = JSON.parse(localStorage.getItem(cacheKey()) || "null");
+        if (cached && cached.ok !== false) {
+          applyData(cached);
+          S.loaded = true;
+          setConnected(true);
+          applyBranding();
+          render();
+        }
+      } catch (e) {}
+    }
     return Api.call("bootstrap", {}).then(function (res) {
       if (!res || res.ok === false) throw new Error(res && res.error ? res.error : "Bad response");
-      S.settings = res.settings || {};
-      S.items = res.items || [];
-      S.customers = res.customers || [];
-      S.sales = res.sales || [];
-      S.payments = res.payments || [];
+      applyData(res);
       S.loaded = true;
       setConnected(true);
       applyBranding();
+      try {
+        var json = JSON.stringify(res);
+        if (json.length < 1500000) localStorage.setItem(cacheKey(), json);
+      } catch (e) {}
       render();
     }).catch(function (e) {
       setConnected(false);
@@ -193,7 +233,8 @@
       customers: "Customers / ক্রেতা",
       payments: "Payments / পেমেন্ট ও বাকি",
       reports: "Reports / রিপোর্ট",
-      settings: "Settings / সেটিংস"
+      settings: "Settings / সেটিংস",
+      users: "Users / ইউজার ম্যানেজমেন্ট"
     };
     $("#pageTitle").textContent = titles[S.page] || "Dashboard";
     var view = $("#view");
@@ -207,6 +248,7 @@
       case "payments": renderPayments(view); break;
       case "reports": renderReports(view); break;
       case "settings": renderSettings(view); break;
+      case "users": renderUsers(view); break;
       default: renderDashboard(view);
     }
   }
@@ -1043,6 +1085,99 @@
   }
 
   /* ============================================================
+   *  USERS (admin only)
+   * ============================================================ */
+  var usersCache = [];
+  function renderUsers(view) {
+    if (!(S.user && S.user.role === "admin")) {
+      view.innerHTML = '<div class="panel"><div class="panel-body"><h2>Admin only</h2><p style="color:var(--muted)">শুধু admin ইউজার ম্যানেজ করতে পারবে।</p></div></div>';
+      return;
+    }
+    view.innerHTML =
+      '<div class="panel"><div class="panel-head"><h2>ইউজার তালিকা / Users</h2><div class="grow"></div>' +
+      '<button class="btn primary" id="addUserBtn">＋ নতুন ইউজার / Add User</button></div>' +
+      '<div class="table-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Shops</th><th>Status</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="6" class="empty">লোড হচ্ছে…</td></tr></tbody></table></div></div>' +
+      '<div class="panel"><div class="panel-body" style="color:var(--muted);font-size:13px">' +
+      "admin = সব দোকান দেখবে ও ইউজার বানাতে পারবে। user = শুধু বাছাই করা দোকান দেখবে, ইউজার পেজ দেখবে না।" +
+      "</div></div>";
+    $("#addUserBtn").onclick = function () { userForm(null); };
+    loadUsers();
+  }
+
+  function loadUsers() {
+    Api.callAt(controlUrl(), "listUsers", { token: S.token }).then(function (res) {
+      if (!res || res.ok === false) throw new Error((res && res.error) || "Failed");
+      usersCache = res.users || [];
+      drawUserRows();
+    }).catch(function (e) {
+      var tb = $("#usersBody"); if (tb) tb.innerHTML = '<tr><td colspan="6" class="empty">' + esc(e.message) + "</td></tr>";
+    });
+  }
+
+  function shopLabel(id) { var a = allShops(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i].name || id; return id; }
+  function findUser(id) { for (var i = 0; i < usersCache.length; i++) if (String(usersCache[i].id) === String(id)) return usersCache[i]; return null; }
+
+  function drawUserRows() {
+    var tb = $("#usersBody"); if (!tb) return;
+    if (!usersCache.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">কোনো ইউজার নেই</td></tr>'; return; }
+    tb.innerHTML = usersCache.map(function (u) {
+      var chips = (u.shops || []).map(function (s) { return '<span class="chip">' + esc(shopLabel(s)) + "</span>"; }).join(" ");
+      return "<tr>" +
+        "<td><b>" + esc(u.username) + "</b></td>" +
+        "<td>" + esc(u.name || "-") + "</td>" +
+        "<td><span class='role-tag'>" + esc(u.role) + "</span></td>" +
+        "<td><div class='shop-chips'>" + (chips || "-") + "</div></td>" +
+        "<td>" + (u.active ? '<span class="badge ok">Active</span>' : '<span class="badge out">Off</span>') + "</td>" +
+        '<td style="white-space:nowrap"><button class="btn sm" data-edituser="' + esc(u.id) + '">Edit</button> <button class="btn sm red" data-deluser="' + esc(u.id) + '">Del</button></td>' +
+        "</tr>";
+    }).join("");
+    $$("[data-edituser]", tb).forEach(function (b) { b.onclick = function () { userForm(findUser(this.getAttribute("data-edituser"))); }; });
+    $$("[data-deluser]", tb).forEach(function (b) {
+      b.onclick = function () {
+        var u = findUser(this.getAttribute("data-deluser"));
+        confirmDialog('ইউজার "' + u.username + '" মুছবেন?', function () {
+          Api.callAt(controlUrl(), "deleteUser", { token: S.token, ID: u.id }).then(function () { toast("মুছে ফেলা হয়েছে", "ok"); loadUsers(); }).catch(function (e) { toast(e.message, "err"); });
+        });
+      };
+    });
+  }
+
+  function userForm(u) {
+    u = u || {};
+    var shops = allShops();
+    var chips = shops.map(function (s) {
+      var checked = (u.shops || []).indexOf(s.id) >= 0;
+      return '<label style="display:flex;align-items:center;gap:8px;margin:4px 0"><input type="checkbox" class="uShop" value="' + esc(s.id) + '"' + (checked ? " checked" : "") + ' style="width:auto"> ' + esc(s.name) + "</label>";
+    }).join("");
+    var body =
+      '<div class="form-grid">' +
+      '<div class="field"><label>ইউজারনেম / Username *</label><input id="uName" value="' + esc(u.username || "") + '"' + (u.id ? " disabled" : "") + "></div>" +
+      '<div class="field"><label>নাম / Name</label><input id="uFull" value="' + esc(u.name || "") + '"></div>' +
+      '<div class="field"><label>Role</label><select id="uRole"><option value="user"' + (u.role === "user" ? " selected" : "") + '>user</option><option value="admin"' + (u.role === "admin" ? " selected" : "") + ">admin</option></select></div>" +
+      '<div class="field"><label>' + (u.id ? "নতুন Password (খালি = অপরিবর্তিত)" : "Password *") + '</label><input id="uPass" type="text" placeholder="' + (u.id ? "••••••" : "password") + '"></div>' +
+      "</div>" +
+      '<div class="field"><label>দোকান / Shops (কোন দোকান দেখবে)</label>' + chips + "</div>" +
+      '<div class="field"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="uActive" ' + (u.id && u.active === false ? "" : "checked") + ' style="width:auto"> সক্রিয় / Active</label></div>';
+    openModal(u.id ? "ইউজার সম্পাদনা / Edit User" : "নতুন ইউজার / Add User", body, {
+      footer: '<button class="btn" data-close>বাতিল</button><button class="btn primary" id="saveUserBtn">সংরক্ষণ</button>',
+      onOpen: function () {
+        $("#saveUserBtn").onclick = function () {
+          var uname = $("#uName").value.trim();
+          if (!uname) { toast("Username দিন", "err"); return; }
+          var pass = $("#uPass").value;
+          if (!u.id && !pass) { toast("Password দিন", "err"); return; }
+          var shopVals = $$(".uShop").filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+          if (!shopVals.length) { toast("অন্তত একটা দোকান বাছুন", "err"); return; }
+          Api.callAt(controlUrl(), "saveUser", {
+            token: S.token, ID: u.id || "", Username: uname, Name: $("#uFull").value.trim(),
+            Role: $("#uRole").value, Password: pass, Shops: shopVals, Active: $("#uActive").checked
+          }).then(function () { closeModal(); toast("সংরক্ষিত", "ok"); loadUsers(); }).catch(function (e) { toast(e.message, "err"); });
+        };
+      }
+    });
+  }
+
+  /* ============================================================
    *  INVOICE PRINT
    * ============================================================ */
   function printInvoice(s) {
@@ -1133,6 +1268,79 @@
     wrap.appendChild(sel);
   }
 
+  function showLogin() {
+    var app = $("#app"); if (app) app.style.display = "none";
+    var ls = $("#loginScreen"); if (ls) ls.hidden = false;
+    var nameEl = $("#loginShopName");
+    var shops = allShops();
+    if (nameEl) nameEl.textContent = (shops[0] && shops[0].name) || cfg().SHOP_NAME || "Fair Shop";
+    var u = $("#loginUser"); if (u) u.focus();
+  }
+  function hideLogin() {
+    var ls = $("#loginScreen"); if (ls) ls.hidden = true;
+    var app = $("#app"); if (app) app.style.display = "";
+  }
+  function doLogin() {
+    var username = $("#loginUser").value.trim();
+    var password = $("#loginPass").value;
+    var err = $("#loginError");
+    err.textContent = "";
+    if (!username || !password) { err.textContent = "ইউজারনেম ও পাসওয়ার্ড দিন"; return; }
+    var btn = $("#loginBtn");
+    btn.disabled = true; btn.textContent = "লগইন হচ্ছে…";
+    Api.callAt(controlUrl(), "login", { username: username, password: password }).then(function (res) {
+      if (!res || res.ok === false) throw new Error((res && res.error) || "Login failed");
+      S.user = res.user;
+      S.token = res.token;
+      setSession({ user: res.user, token: res.token, ts: Date.now() });
+      hideLogin();
+      startApp();
+    }).catch(function (e) {
+      if (/unknown action/i.test(e.message || "")) {
+        // Backend not updated yet -> temporary open mode so the shop keeps working
+        S.user = { name: "Admin", role: "admin", shops: allShops().map(function (s) { return s.id; }) };
+        S.token = null;
+        hideLogin();
+        startApp();
+        toast("Apps Script-এ নতুন Code.gs deploy করুন (login/users চালু করতে)", "err");
+        return;
+      }
+      err.textContent = e.message;
+    }).then(function () {
+      btn.disabled = false; btn.textContent = "লগইন / Login";
+    });
+  }
+  function logout() {
+    clearSession();
+    S.user = null; S.token = null; S.loaded = false;
+    location.reload();
+  }
+  function startApp() {
+    hideLogin();
+    var who = $("#whoAmI");
+    if (who) who.textContent = S.user ? (S.user.name + (S.user.role === "admin" ? " • admin" : "")) : "";
+    var un = $("#usersNav");
+    if (un) un.hidden = !(S.user && S.user.role === "admin");
+    applyActiveShop();
+    setupShopSwitcher();
+    var hash = (location.hash || "#dashboard").slice(1) || "dashboard";
+    S.page = hash;
+    $$(".nav a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === S.page); });
+    $("#view").innerHTML = '<div class="spinner"></div>';
+    loadAll();
+    var ars = num(cfg().AUTO_REFRESH_SECONDS);
+    if (ars > 0 && !S._autoTimer) S._autoTimer = setInterval(function () { if (S.loaded) loadAll(true); }, ars * 1000);
+  }
+  function startup() {
+    if (authEnabled()) {
+      var sess = getSession();
+      if (sess && sess.user && sess.token) { S.user = sess.user; S.token = sess.token; startApp(); }
+      else showLogin();
+    } else {
+      startApp();
+    }
+  }
+
   function init() {
     $$(".nav a").forEach(function (a) {
       a.addEventListener("click", function (e) { e.preventDefault(); setPage(this.getAttribute("data-nav")); });
@@ -1146,26 +1354,26 @@
     $("#modalMask").addEventListener("click", function (e) { if (e.target === this) closeModal(); });
     $("#refreshBtn").onclick = function () { toast("আপডেট হচ্ছে…", "info"); loadAll(); };
     $("#menuBtn").onclick = openSidebar;
+    $("#logoutBtn").onclick = logout;
+    $("#loginBtn").onclick = doLogin;
+    $("#loginPass").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
+    $("#loginUser").addEventListener("keydown", function (e) { if (e.key === "Enter") $("#loginPass").focus(); });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
 
-    var hash = (location.hash || "#dashboard").slice(1);
-    S.page = hash || "dashboard";
-    $$(".nav a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === S.page); });
-
-    $("#view").innerHTML = '<div class="spinner"></div>';
     tickClock();
     setInterval(tickClock, 1000);
-    applyActiveShop();
-    setupShopSwitcher();
-    loadAll();
-
-    var ars = num(cfg().AUTO_REFRESH_SECONDS);
-    if (ars > 0) setInterval(function () { if (S.loaded) loadAll(true); }, ars * 1000);
 
     window.addEventListener("hashchange", function () {
       var p = (location.hash || "#dashboard").slice(1);
-      if (p && p !== S.page) { S.page = p; $$(".nav a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === p); }); closeSidebar(); render(); }
+      if (p && p !== S.page && S.loaded) {
+        S.page = p;
+        $$(".nav a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === p); });
+        closeSidebar();
+        render();
+      }
     });
+
+    startup();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
