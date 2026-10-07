@@ -1,0 +1,7 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# Local overrides (keep your real API URL out of git if you want)
+assets/js/config.local.js

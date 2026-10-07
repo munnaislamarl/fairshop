@@ -1,0 +1,92 @@
+/* ============================================================
+ *  Fai Shop Dashboard — API transport
+ *  - Reads  : JSONP  (no CORS issues with Google Apps Script)
+ *  - Writes : POST text/plain (simple request), JSONP fallback
+ * ============================================================ */
+window.Api = (function () {
+  var seq = 0;
+
+  var WRITE_ACTIONS = {
+    saveItem: 1, deleteItem: 1,
+    saveCustomer: 1, deleteCustomer: 1,
+    createSale: 1, deleteSale: 1,
+    addPayment: 1, deletePayment: 1,
+    saveSettings: 1
+  };
+
+  function configured() {
+    var url = window.SHOP_CONFIG.API_URL || "";
+    return url.indexOf("http") === 0;
+  }
+
+  function jsonp(action, payload) {
+    return new Promise(function (resolve, reject) {
+      if (!configured()) {
+        reject(new Error("API URL সেট করা হয়নি — assets/js/config.js ফাইল দেখুন।"));
+        return;
+      }
+      var cb = "fai_cb_" + (++seq) + "_" + Date.now();
+      var script = document.createElement("script");
+      var timer = setTimeout(function () {
+        cleanup();
+        reject(new Error("Request timeout"));
+      }, 30000);
+
+      function cleanup() {
+        clearTimeout(timer);
+        try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[cb] = function (res) {
+        cleanup();
+        resolve(res);
+      };
+      script.onerror = function () {
+        cleanup();
+        reject(new Error("Network error — Apps Script URL বা deployment access চেক করুন।"));
+      };
+
+      var params =
+        "action=" + encodeURIComponent(action) +
+        "&data=" + encodeURIComponent(JSON.stringify(payload || {})) +
+        "&callback=" + encodeURIComponent(cb) +
+        "&_=" + Date.now();
+
+      script.src = window.SHOP_CONFIG.API_URL + (window.SHOP_CONFIG.API_URL.indexOf("?") >= 0 ? "&" : "?") + params;
+      document.body.appendChild(script);
+    });
+  }
+
+  function post(action, payload) {
+    return fetch(window.SHOP_CONFIG.API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: action, payload: payload || {} }),
+      redirect: "follow"
+    }).then(function (res) {
+      return res.text();
+    }).then(function (text) {
+      var data;
+      try { data = JSON.parse(text); }
+      catch (e) { throw new Error("Invalid response from server"); }
+      return data;
+    });
+  }
+
+  function call(action, payload) {
+    if (!configured()) {
+      return Promise.reject(new Error("API URL সেট করা হয়নি — assets/js/config.js ফাইল দেখুন।"));
+    }
+    if (WRITE_ACTIONS[action]) {
+      return post(action, payload).catch(function () {
+        return jsonp(action, payload);
+      });
+    }
+    return jsonp(action, payload);
+  }
+
+  function ping() { return jsonp("ping", {}); }
+
+  return { call: call, ping: ping, configured: configured };
+})();
