@@ -15,8 +15,8 @@ window.SHOP_CONFIG = {
     {
       id: "shop2",
       name: "Fair Shop 2",
-      // Shop 2 Apps Script Web App /exec URL — paste it here when ready
-      apiUrl: ""
+      // Shop 2 Apps Script Web App /exec URL
+      apiUrl: "https://script.google.com/macros/s/AKfycby-QXlEmiou2wcLDKiRGTNwajdVwLDVjdWzWT08gEyPU3CxH2NawnDJuWDHNZ9S96QG/exec"
     }
   ],
 
