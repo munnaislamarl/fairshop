@@ -1298,7 +1298,7 @@
     function addBase(count) {
       for (var i = 0; i < count; i++) {
         var ang = Math.random() * Math.PI * 2;
-        var spd = 0.35 + Math.random() * 0.75;
+        var spd = (0.35 + Math.random() * 0.75) * 0.4;
         pts.push({ x: Math.random() * w, y: Math.random() * h, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: Infinity, r: 1.6 });
       }
     }
@@ -1306,7 +1306,7 @@
       w = cv.clientWidth; h = cv.clientHeight;
       cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var base = Math.max(60, Math.min(220, Math.round((w * h) / 8500)));
+      var base = Math.max(90, Math.min(320, Math.round((w * h) / 6000)));
       pts = [];
       addBase(base);
     }
@@ -1326,7 +1326,7 @@
     }
     function draw() {
       ctx.clearRect(0, 0, w, h);
-      var linkDist = 150;
+      var linkDist = 165;
       for (var i = pts.length - 1; i >= 0; i--) {
         var p = pts[i];
         p.x += p.vx; p.y += p.vy;
