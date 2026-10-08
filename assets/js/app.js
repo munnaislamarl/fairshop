@@ -1292,7 +1292,7 @@
     var ctx = cv.getContext("2d");
     var w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
     var pts = [];
-    var MAXP = 460;
+    var MAXP = 600;
     var mouse = { x: 0, y: 0, on: false };
 
     function addBase(count) {
@@ -1316,7 +1316,7 @@
       for (var i = 0; i < n; i++) {
         if (pts.length > MAXP) break;
         var a = (Math.PI * 2 * i) / n + Math.random() * .5;
-        var sp = .8 + Math.random() * 3.0;
+        var sp = .4 + Math.random() * 1.3;
         var off = Math.random() * 12;
         pts.push({
           x: x + Math.cos(a) * off, y: y + Math.sin(a) * off,
@@ -1334,8 +1334,10 @@
           if (p.x < 0 || p.x > w) p.vx *= -1;
           if (p.y < 0 || p.y > h) p.vy *= -1;
         } else {
-          p.life -= 0.0038;
-          p.vx *= 0.995; p.vy *= 0.995;
+          p.life -= 0.0005;
+          p.vx *= 0.9995; p.vy *= 0.9995;
+          if (p.x < 0 || p.x > w) p.vx *= -1;
+          if (p.y < 0 || p.y > h) p.vy *= -1;
           if (p.life <= 0) { pts.splice(i, 1); continue; }
         }
       }
