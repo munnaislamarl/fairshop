@@ -1316,7 +1316,7 @@
       for (var i = 0; i < n; i++) {
         if (pts.length > MAXP) break;
         var a = (Math.PI * 2 * i) / n + Math.random() * .5;
-        var sp = .4 + Math.random() * 1.3;
+        var sp = 5 + Math.random() * 9;
         var off = Math.random() * 12;
         pts.push({
           x: x + Math.cos(a) * off, y: y + Math.sin(a) * off,
@@ -1335,7 +1335,13 @@
           if (p.y < 0 || p.y > h) p.vy *= -1;
         } else {
           p.life -= 0.0005;
-          p.vx *= 0.9995; p.vy *= 0.9995;
+          // fast at the click, then decelerate the further it travels
+          p.vx *= 0.955; p.vy *= 0.955;
+          var spd2 = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+          if (spd2 < 0.12) {
+            var na = Math.random() * Math.PI * 2, ns = 0.1 + Math.random() * 0.25;
+            p.vx = Math.cos(na) * ns; p.vy = Math.sin(na) * ns;
+          }
           if (p.x < 0 || p.x > w) p.vx *= -1;
           if (p.y < 0 || p.y > h) p.vy *= -1;
           if (p.life <= 0) { pts.splice(i, 1); continue; }
