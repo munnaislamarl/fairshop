@@ -1313,7 +1313,7 @@
     }
     // click on empty space -> big burst of nodes that form a glowing web
     function burst(x, y) {
-      ripples.push({ x: x, y: y, r: 4, a: 0.7 });
+      ripples.push({ x: x, y: y, r: 4 });
       if (ripples.length > 14) ripples.shift();
       var n = 12;
       for (var i = 0; i < n; i++) {
@@ -1373,18 +1373,14 @@
         g.addColorStop(1, "rgba(120,145,255,0)");
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 170, 0, Math.PI * 2); ctx.fill();
-        // grab radius ring
-        ctx.strokeStyle = "rgba(150,170,255,0.20)";
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 80, 0, Math.PI * 2); ctx.stroke();
       }
-      // click ripples that grow outward
+      // click ripples: grow to 160px, then disappear
       for (var ri = ripples.length - 1; ri >= 0; ri--) {
         var rp = ripples[ri];
-        rp.r += 3.2;
-        rp.a *= 0.985;
-        if (rp.a < 0.03 || rp.r > 360) { ripples.splice(ri, 1); continue; }
-        ctx.strokeStyle = "rgba(180,200,255," + rp.a.toFixed(3) + ")";
+        rp.r += 3.0;
+        if (rp.r >= 160) { ripples.splice(ri, 1); continue; }
+        var ra = 0.6 * (1 - rp.r / 160);
+        ctx.strokeStyle = "rgba(180,200,255," + ra.toFixed(3) + ")";
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2); ctx.stroke();
       }
