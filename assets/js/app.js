@@ -1292,6 +1292,7 @@
     var ctx = cv.getContext("2d");
     var w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
     var pts = [];
+    var ripples = [];
     var MAXP = 600;
     var mouse = { x: 0, y: 0, on: false };
 
@@ -1312,6 +1313,8 @@
     }
     // click on empty space -> big burst of nodes that form a glowing web
     function burst(x, y) {
+      ripples.push({ x: x, y: y, r: 4, a: 0.7 });
+      if (ripples.length > 14) ripples.shift();
       var n = 12;
       for (var i = 0; i < n; i++) {
         if (pts.length > MAXP) break;
@@ -1374,6 +1377,16 @@
         ctx.strokeStyle = "rgba(150,170,255,0.20)";
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 80, 0, Math.PI * 2); ctx.stroke();
+      }
+      // click ripples that grow outward
+      for (var ri = ripples.length - 1; ri >= 0; ri--) {
+        var rp = ripples[ri];
+        rp.r += 3.2;
+        rp.a *= 0.985;
+        if (rp.a < 0.03 || rp.r > 360) { ripples.splice(ri, 1); continue; }
+        ctx.strokeStyle = "rgba(180,200,255," + rp.a.toFixed(3) + ")";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2); ctx.stroke();
       }
       // links between particles
       for (var a = 0; a < pts.length; a++) {
