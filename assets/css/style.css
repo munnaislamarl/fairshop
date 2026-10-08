@@ -96,10 +96,10 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 .login-screen {
   position: fixed; inset: 0; z-index: 300; overflow: hidden;
   display: flex; align-items: center; justify-content: center; padding: 16px;
-  background: radial-gradient(1200px 600px at 20% -10%, #283090 0%, #0f1230 45%, #080a1c 100%);
+  background: radial-gradient(1100px 700px at 26% -10%, #1c2565 0%, #0e1334 45%, #070a1c 100%);
 }
 .login-fx { position: absolute; inset: 0; width: 100%; height: 100%; }
-.login-orb { position: absolute; top: -8rem; right: -6rem; width: 28rem; height: 28rem; border-radius: 999px; background: #3947b3; filter: blur(64px); opacity: .2; pointer-events: none; }
+.login-orb { position: absolute; top: -8rem; right: -6rem; width: 28rem; height: 28rem; border-radius: 999px; background: #2b39a0; filter: blur(70px); opacity: .18; pointer-events: none; }
 .login-wrap { position: relative; width: 100%; max-width: 420px; padding: 24px 0; }
 .login-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,.55), 0 10px 30px rgba(0,0,0,.35); }
 .login-topbar { height: 6px; width: 100%; background: linear-gradient(90deg, #283090, #3947b3); }

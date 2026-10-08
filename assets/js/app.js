@@ -1304,7 +1304,7 @@
       w = cv.clientWidth; h = cv.clientHeight;
       cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var base = Math.max(40, Math.min(110, Math.round((w * h) / 15000)));
+      var base = Math.max(60, Math.min(220, Math.round((w * h) / 8500)));
       pts = [];
       addBase(base);
     }
@@ -1324,7 +1324,7 @@
     }
     function draw() {
       ctx.clearRect(0, 0, w, h);
-      var linkDist = 180;
+      var linkDist = 150;
       for (var i = pts.length - 1; i >= 0; i--) {
         var p = pts[i];
         p.x += p.vx; p.y += p.vy;
@@ -1355,8 +1355,8 @@
           var dx = p1.x - p2.x, dy = p1.y - p2.y, d = Math.sqrt(dx * dx + dy * dy);
           if (d < linkDist) {
             var lf2 = p2.life === Infinity ? 1 : p2.life;
-            var alpha = 0.22 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
-            ctx.strokeStyle = "rgba(150,165,235," + alpha.toFixed(3) + ")";
+            var alpha = 0.30 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
+            ctx.strokeStyle = "rgba(170,185,255," + alpha.toFixed(3) + ")";
             ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
           }
@@ -1380,19 +1380,17 @@
       for (var k = 0; k < pts.length; k++) {
         var q = pts[k];
         var lf = q.life === Infinity ? 1 : q.life;
-        ctx.fillStyle = "rgba(220,230,255," + (0.45 + 0.45 * lf).toFixed(3) + ")";
+        ctx.fillStyle = "rgba(228,234,255," + (0.5 + 0.4 * lf).toFixed(3) + ")";
         ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, Math.PI * 2); ctx.fill();
       }
       loginRaf = requestAnimationFrame(draw);
     }
     function onDown(e) {
-      if (e.target.closest && e.target.closest(".login-card")) return;
       var rect = cv.getBoundingClientRect();
       var pt = e.touches && e.touches[0] ? e.touches[0] : e;
       burst(pt.clientX - rect.left, pt.clientY - rect.top);
     }
     function onMove(e) {
-      if (e.target.closest && e.target.closest(".login-card")) { mouse.on = false; return; }
       var rect = cv.getBoundingClientRect();
       var pt = e.touches && e.touches[0] ? e.touches[0] : e;
       mouse.x = pt.clientX - rect.left; mouse.y = pt.clientY - rect.top; mouse.on = true;
