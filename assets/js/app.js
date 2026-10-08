@@ -1307,7 +1307,7 @@
       w = cv.clientWidth; h = cv.clientHeight;
       cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var base = Math.max(80, Math.min(260, Math.round((w * h) / 7500)));
+      var base = Math.max(64, Math.min(208, Math.round((w * h) / 9375)));
       pts = [];
       addBase(base);
     }
@@ -1319,7 +1319,7 @@
       for (var i = 0; i < n; i++) {
         if (pts.length > MAXP) break;
         var a = (Math.PI * 2 * i) / n + Math.random() * .5;
-        var sp = 5 + Math.random() * 9;
+        var sp = 2.5 + Math.random() * 4.5;
         var off = Math.random() * 12;
         pts.push({
           x: x + Math.cos(a) * off, y: y + Math.sin(a) * off,
