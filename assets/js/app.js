@@ -1310,7 +1310,7 @@
     }
     // click on empty space -> big burst of nodes that form a glowing web
     function burst(x, y) {
-      var n = 30;
+      var n = 15;
       for (var i = 0; i < n; i++) {
         if (pts.length > MAXP) break;
         var a = (Math.PI * 2 * i) / n + Math.random() * .5;

@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070a1c" />
+  <title>Fair Shop — Sign in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy-a: #1c2565;
+      --navy-b: #0e1334;
+      --navy-c: #070a1c;
+      --brand: #283090;
+      --brand-2: #3947b3;
+      --brand-hover: #232a79;
+      --ink: #111827;
+      --muted: #6b7280;
+      --label: #4b5563;
+      --border: #d1d5db;
+      --placeholder: #9ca3af;
+      --error: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, "Hind Siliguri", "Segoe UI", sans-serif;
+      color: #fff;
+      background: radial-gradient(1100px 700px at 26% -10%, var(--navy-a) 0%, var(--navy-b) 45%, var(--navy-c) 100%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Background layers ---- */
+    #fx {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: fixed;
+      top: -70px;
+      right: -70px;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: #2b39a0;
+      filter: blur(70px);
+      opacity: 0.18;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ---- Layout ---- */
+    .wrap {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      padding: 28px 20px;
+    }
+
+    /* ---- Card ---- */
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow:
+        0 30px 60px -22px rgba(4, 8, 30, 0.65),
+        0 12px 32px rgba(4, 8, 30, 0.35),
+        0 2px 6px rgba(4, 8, 30, 0.2);
+      animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px) scale(0.99); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .card-top {
+      height: 6px;
+      background: linear-gradient(90deg, #283090, #3947b3);
+    }
+
+    .form {
+      padding: 30px 28px 26px;
+    }
+
+    .badge {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #283090, #3947b3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 22px rgba(40, 48, 144, 0.35);
+    }
+
+    .badge svg { width: 28px; height: 28px; color: #fff; }
+
+    .title {
+      margin: 0 0 4px;
+      text-align: center;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+    }
+
+    .subtitle {
+      margin: 0 0 22px;
+      text-align: center;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .field { margin-bottom: 14px; }
+
+    .label {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--label);
+    }
+
+    .input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .input::placeholder { color: var(--placeholder); }
+
+    .input:focus {
+      border-color: #283090;
+      box-shadow: 0 0 0 2px rgba(40, 48, 144, 0.2);
+    }
+
+    .pass { position: relative; }
+    .pass .input { padding-right: 46px; }
+
+    .eye {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #6b7280;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .eye:hover { background: #f1f3f9; color: #283090; }
+    .eye:focus-visible { outline: 2px solid rgba(40, 48, 144, 0.4); outline-offset: 1px; }
+    .eye svg { width: 19px; height: 19px; }
+    .eye .icon-eye-off { display: none; }
+    .eye.on .icon-eye { display: none; }
+    .eye.on .icon-eye-off { display: block; }
+
+    .error {
+      min-height: 18px;
+      margin: 10px 0 0;
+      font-size: 12.5px;
+      line-height: 1.4;
+      color: var(--error);
+    }
+
+    .error.success { color: #16a34a; }
+
+    .btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 9px;
+      background: #283090;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(40, 48, 144, 0.3);
+      transition: background 0.15s ease, transform 0.06s ease, box-shadow 0.15s ease;
+    }
+
+    .btn:hover { background: #232a79; box-shadow: 0 8px 20px rgba(40, 48, 144, 0.36); }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.72; cursor: default; box-shadow: none; }
+
+    .hint {
+      margin: 12px 0 0;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    /* ---- Footer ---- */
+    .foot {
+      position: relative;
+      z-index: 2;
+      margin: 0;
+      text-align: center;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #c7cbe0;
+    }
+
+    .foot span { color: #8b90ad; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 480px) {
+      .wrap { padding: 20px 14px; gap: 18px; }
+      .form { padding: 24px 20px 22px; }
+      .badge { width: 52px; height: 52px; }
+      .title { font-size: 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .card { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="orb" aria-hidden="true"></div>
+
+  <main class="wrap">
+    <section class="card" aria-labelledby="shopTitle">
+      <div class="card-top"></div>
+      <form class="form" id="loginForm" novalidate>
+        <div class="badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+        </div>
+
+        <h1 class="title" id="shopTitle">Fair Shop</h1>
+        <p class="subtitle">Sign in to your account &middot; লগইন করুন</p>
+
+        <div class="field">
+          <label class="label" for="username">Username</label>
+          <input id="username" class="input" type="text" name="username" placeholder="username"
+                 autocomplete="username" autocapitalize="none" spellcheck="false" required />
+        </div>
+
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <div class="pass">
+            <input id="password" class="input" type="password" name="password" placeholder="••••••••"
+                   autocomplete="current-password" required />
+            <button type="button" class="eye" id="togglePass" aria-label="Show password" aria-pressed="false">
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="error" id="loginError" role="alert" aria-live="polite"></div>
+
+        <button class="btn" id="loginBtn" type="submit">Sign in</button>
+        <p class="hint">প্রথমবার ডিফল্ট — admin / admin123</p>
+      </form>
+    </section>
+
+    <p class="foot">
+      Fair Shop &mdash; Sales &amp; Inventory Management<br />
+      <span>&copy; 2026 Fair Shop. All Rights Reserved.</span>
+    </p>
+  </main>
+
+  <script>
+    /* ============================================================
+       Particle-network background (vanilla JS, DPR-aware, capped)
+       ============================================================ */
+    (function () {
+      "use strict";
+
+      var canvas = document.getElementById("fx");
+      var ctx = canvas.getContext("2d");
+      var W = 0, H = 0, dpr = 1, rafId = 0;
+      var particles = [];
+      var mouse = { x: -9999, y: -9999, active: false };
+
+      var CONNECT = 150;          // link distance (px)
+      var DENSITY = 8500;         // one node per ~8500 px²
+      var MAX_BASE = 220;         // cap for ambient nodes
+      var MAX_TOTAL = 340;        // hard cap including bursts
+      var BURST_COUNT = 30;
+      var BURST_LIFE = 4.0;       // seconds
+
+      var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function rnd(min, max) { return min + Math.random() * (max - min); }
+
+      function makeBase() {
+        var speed = reduceMotion ? 0 : rnd(0.1, 0.35);
+        var angle = rnd(0, Math.PI * 2);
+        return {
+          x: rnd(0, W),
+          y: rnd(0, H),
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          r: rnd(1, 2.2),
+          alpha: rnd(0.35, 0.8),
+          burst: false,
+          t: 0,
+          max: 0
+        };
+      }
+
+      function baseTarget() {
+        return Math.min(Math.round((W * H) / DENSITY), MAX_BASE);
+      }
+
+      function resetBase() {
+        particles = particles.filter(function (p) { return p.burst; });
+        var n = baseTarget();
+        for (var i = 0; i < n; i++) particles.push(makeBase());
+      }
+
+      function capTotal() {
+        if (particles.length <= MAX_TOTAL) return;
+        var excess = particles.length - MAX_TOTAL;
+        for (var i = 0; i < particles.length && excess > 0; i++) {
+          if (!particles[i].burst) { particles.splice(i, 1); i--; excess--; }
+        }
+      }
+
+      function burst(x, y) {
+        for (var i = 0; i < BURST_COUNT; i++) {
+          var angle = rnd(0, Math.PI * 2);
+          var speed = rnd(0.7, 2.8);
+          particles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            r: rnd(1.2, 2.6),
+            alpha: 1,
+            burst: true,
+            t: 0,
+            max: rnd(BURST_LIFE - 1, BURST_LIFE)
+          });
+        }
+        capTotal();
+      }
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = Math.floor(W * dpr);
+        canvas.height = Math.floor(H * dpr);
+        canvas.style.width = W + "px";
+        canvas.style.height = H + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        resetBase();
+      }
+
+      var last = 0;
+
+      function frame(now) {
+        var dt = last ? Math.min((now - last) / 1000, 0.05) : 0.016;
+        last = now;
+
+        ctx.clearRect(0, 0, W, H);
+
+        /* --- update --- */
+        for (var i = particles.length - 1; i >= 0; i--) {
+          var p = particles[i];
+          p.x += p.vx * (dt * 60);
+          p.y += p.vy * (dt * 60);
+
+          if (p.burst) {
+            p.vx *= 0.985;
+            p.vy *= 0.985;
+            p.t += dt;
+            if (p.t >= p.max) particles.splice(i, 1);
+          } else {
+            if (p.x < -20) p.x = W + 20;
+            else if (p.x > W + 20) p.x = -20;
+            if (p.y < -20) p.y = H + 20;
+            else if (p.y > H + 20) p.y = -20;
+          }
+        }
+
+        /* --- cursor glow --- */
+        if (mouse.active) {
+          var glow = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 170);
+          glow.addColorStop(0, "rgba(120,145,255,0.22)");
+          glow.addColorStop(1, "rgba(120,145,255,0)");
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(mouse.x, mouse.y, 170, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        /* --- links between nodes --- */
+        ctx.lineWidth = 1;
+        var connect2 = CONNECT * CONNECT;
+        for (var a = 0; a < particles.length; a++) {
+          var pa = particles[a];
+          for (var b = a + 1; b < particles.length; b++) {
+            var pb = particles[b];
+            var dx = pa.x - pb.x;
+            var dy = pa.y - pb.y;
+            var d2 = dx * dx + dy * dy;
+            if (d2 >= connect2) continue;
+
+            var d = Math.sqrt(d2);
+            var alpha = (1 - d / CONNECT) * 0.35;
+
+            if (pa.burst || pb.burst) {
+              var fa = pa.burst ? 1 - pa.t / pa.max : 1;
+              var fb = pb.burst ? 1 - pb.t / pb.max : 1;
+              alpha *= Math.max(fa, fb);
+              ctx.strokeStyle = "rgba(150,170,255," + alpha.toFixed(3) + ")";
+            } else {
+              ctx.strokeStyle = "rgba(190,205,255," + alpha.toFixed(3) + ")";
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(pa.x, pa.y);
+            ctx.lineTo(pb.x, pb.y);
+            ctx.stroke();
+          }
+        }
+
+        /* --- cursor links --- */
+        if (mouse.active) {
+          for (var c = 0; c < particles.length; c++) {
+            var pc = particles[c];
+            var mx = pc.x - mouse.x;
+            var my = pc.y - mouse.y;
+            var md2 = mx * mx + my * my;
+            if (md2 < connect2) {
+              var md = Math.sqrt(md2);
+              var ma = (1 - md / CONNECT) * 0.5;
+              ctx.strokeStyle = "rgba(120,145,255," + ma.toFixed(3) + ")";
+              ctx.beginPath();
+              ctx.moveTo(mouse.x, mouse.y);
+              ctx.lineTo(pc.x, pc.y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        /* --- nodes --- */
+        for (var n = 0; n < particles.length; n++) {
+          var pn = particles[n];
+          var life = 1;
+          if (pn.burst) life = Math.max(0, 1 - pn.t / pn.max);
+          var nodeAlpha = pn.burst ? life : pn.alpha;
+
+          ctx.beginPath();
+          ctx.arc(pn.x, pn.y, pn.r, 0, Math.PI * 2);
+
+          if (pn.burst) {
+            ctx.fillStyle = "rgba(200,215,255," + nodeAlpha.toFixed(3) + ")";
+            ctx.shadowColor = "rgba(120,145,255,0.9)";
+            ctx.shadowBlur = 12;
+          } else {
+            ctx.fillStyle = "rgba(255,255,255," + (nodeAlpha * 0.9).toFixed(3) + ")";
+            ctx.shadowBlur = 0;
+          }
+          ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+
+        rafId = requestAnimationFrame(frame);
+      }
+
+      window.addEventListener("resize", resize, { passive: true });
+      window.addEventListener("mousemove", function (e) {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.active = true;
+      }, { passive: true });
+      window.addEventListener("mouseleave", function () { mouse.active = false; });
+
+      /* click / tap anywhere (including over the card) spawns a glowing web */
+      window.addEventListener("pointerdown", function (e) {
+        if (e.button === 0) burst(e.clientX, e.clientY);
+      }, { passive: true });
+      window.addEventListener("touchstart", function (e) {
+        var t = e.touches[0];
+        if (t) burst(t.clientX, t.clientY);
+      }, { passive: true });
+
+      resize();
+      if (reduceMotion) {
+        frame(0);
+      } else {
+        rafId = requestAnimationFrame(frame);
+      }
+    })();
+
+    /* ============================================================
+       Login form logic
+       ============================================================ */
+    (function () {
+      "use strict";
+
+      var form = document.getElementById("loginForm");
+      var userEl = document.getElementById("username");
+      var passEl = document.getElementById("password");
+      var eye = document.getElementById("togglePass");
+      var errEl = document.getElementById("loginError");
+      var btn = document.getElementById("loginBtn");
+
+      eye.addEventListener("click", function () {
+        var show = passEl.type === "password";
+        passEl.type = show ? "text" : "password";
+        eye.classList.toggle("on", show);
+        eye.setAttribute("aria-pressed", show ? "true" : "false");
+        eye.setAttribute("aria-label", show ? "Hide password" : "Show password");
+        passEl.focus();
+      });
+
+      function setError(message, success) {
+        errEl.textContent = message || "";
+        errEl.classList.toggle("success", !!success);
+      }
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        var user = userEl.value.trim();
+        var pass = passEl.value;
+
+        if (!user) { setError("ইউজারনেম দিন।"); userEl.focus(); return; }
+        if (!pass) { setError("পাসওয়ার্ড দিন।"); passEl.focus(); return; }
+
+        setError("");
+        btn.disabled = true;
+        btn.textContent = "Signing in…";
+
+        // Demo authentication. Replace with a real API call if needed.
+        window.setTimeout(function () {
+          if (user === "admin" && pass === "admin123") {
+            setError("সফল! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে…", true);
+            window.setTimeout(function () {
+              window.location.href = "index.html";
+            }, 650);
+          } else {
+            btn.disabled = false;
+            btn.textContent = "Sign in";
+            setError("ভুল ইউজারনেম অথবা পাসওয়ার্ড।");
+            passEl.focus();
+            passEl.select();
+          }
+        }, 450);
+      });
+    })();
+  </script>
+</body>
+</html>
