@@ -1292,33 +1292,39 @@
     var ctx = cv.getContext("2d");
     var w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
     var pts = [];
-    var MAXP = 240;
+    var MAXP = 460;
+    var mouse = { x: 0, y: 0, on: false };
 
     function addBase(count) {
       for (var i = 0; i < count; i++) {
-        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, life: Infinity });
+        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, life: Infinity, r: 1.6 });
       }
     }
     function resize() {
       w = cv.clientWidth; h = cv.clientHeight;
       cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var base = Math.max(34, Math.min(90, Math.round((w * h) / 20000)));
+      var base = Math.max(40, Math.min(110, Math.round((w * h) / 15000)));
       pts = [];
       addBase(base);
     }
-    // click on empty space -> burst of nodes that form a glowing web
+    // click on empty space -> big burst of nodes that form a glowing web
     function burst(x, y) {
-      for (var i = 0; i < 16; i++) {
+      var n = 30;
+      for (var i = 0; i < n; i++) {
         if (pts.length > MAXP) break;
-        var a = (Math.PI * 2 * i) / 16 + Math.random() * .5;
-        var sp = .5 + Math.random() * 1.7;
-        pts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1 });
+        var a = (Math.PI * 2 * i) / n + Math.random() * .5;
+        var sp = .8 + Math.random() * 3.0;
+        var off = Math.random() * 12;
+        pts.push({
+          x: x + Math.cos(a) * off, y: y + Math.sin(a) * off,
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, r: 2.3
+        });
       }
     }
     function draw() {
       ctx.clearRect(0, 0, w, h);
-      var linkDist = 155;
+      var linkDist = 180;
       for (var i = pts.length - 1; i >= 0; i--) {
         var p = pts[i];
         p.x += p.vx; p.y += p.vy;
@@ -1326,11 +1332,21 @@
           if (p.x < 0 || p.x > w) p.vx *= -1;
           if (p.y < 0 || p.y > h) p.vy *= -1;
         } else {
-          p.life -= 0.006;
-          p.vx *= 0.994; p.vy *= 0.994;
+          p.life -= 0.0038;
+          p.vx *= 0.995; p.vy *= 0.995;
           if (p.life <= 0) { pts.splice(i, 1); continue; }
         }
       }
+      // cursor light glow
+      if (mouse.on) {
+        var g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 170);
+        g.addColorStop(0, "rgba(120,145,255,0.22)");
+        g.addColorStop(0.5, "rgba(120,145,255,0.08)");
+        g.addColorStop(1, "rgba(120,145,255,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 170, 0, Math.PI * 2); ctx.fill();
+      }
+      // links between particles
       for (var a = 0; a < pts.length; a++) {
         var p1 = pts[a];
         var lf1 = p1.life === Infinity ? 1 : p1.life;
@@ -1339,18 +1355,33 @@
           var dx = p1.x - p2.x, dy = p1.y - p2.y, d = Math.sqrt(dx * dx + dy * dy);
           if (d < linkDist) {
             var lf2 = p2.life === Infinity ? 1 : p2.life;
-            var alpha = 0.20 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
+            var alpha = 0.22 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
             ctx.strokeStyle = "rgba(150,165,235," + alpha.toFixed(3) + ")";
             ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
           }
         }
       }
+      // links from the cursor light to nearby nodes
+      if (mouse.on) {
+        var mL = 210;
+        for (var m = 0; m < pts.length; m++) {
+          var pm = pts[m];
+          var mx = pm.x - mouse.x, my = pm.y - mouse.y, md = Math.sqrt(mx * mx + my * my);
+          if (md < mL) {
+            var ma = 0.5 * (1 - md / mL);
+            ctx.strokeStyle = "rgba(170,190,255," + ma.toFixed(3) + ")";
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(mouse.x, mouse.y); ctx.lineTo(pm.x, pm.y); ctx.stroke();
+          }
+        }
+      }
+      // nodes
       for (var k = 0; k < pts.length; k++) {
         var q = pts[k];
         var lf = q.life === Infinity ? 1 : q.life;
-        ctx.fillStyle = "rgba(215,225,255," + (0.45 + 0.45 * lf).toFixed(3) + ")";
-        ctx.beginPath(); ctx.arc(q.x, q.y, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "rgba(220,230,255," + (0.45 + 0.45 * lf).toFixed(3) + ")";
+        ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, Math.PI * 2); ctx.fill();
       }
       loginRaf = requestAnimationFrame(draw);
     }
@@ -1360,16 +1391,32 @@
       var pt = e.touches && e.touches[0] ? e.touches[0] : e;
       burst(pt.clientX - rect.left, pt.clientY - rect.top);
     }
+    function onMove(e) {
+      if (e.target.closest && e.target.closest(".login-card")) { mouse.on = false; return; }
+      var rect = cv.getBoundingClientRect();
+      var pt = e.touches && e.touches[0] ? e.touches[0] : e;
+      mouse.x = pt.clientX - rect.left; mouse.y = pt.clientY - rect.top; mouse.on = true;
+    }
+    function onLeave() { mouse.on = false; }
     resize();
     window.addEventListener("resize", resize);
     var screen = $("#loginScreen");
     if (screen) {
       screen.addEventListener("mousedown", onDown);
       screen.addEventListener("touchstart", onDown, { passive: true });
+      screen.addEventListener("mousemove", onMove);
+      screen.addEventListener("touchmove", onMove, { passive: true });
+      screen.addEventListener("mouseleave", onLeave);
     }
     cv._cleanup = function () {
       window.removeEventListener("resize", resize);
-      if (screen) { screen.removeEventListener("mousedown", onDown); screen.removeEventListener("touchstart", onDown); }
+      if (screen) {
+        screen.removeEventListener("mousedown", onDown);
+        screen.removeEventListener("touchstart", onDown);
+        screen.removeEventListener("mousemove", onMove);
+        screen.removeEventListener("touchmove", onMove);
+        screen.removeEventListener("mouseleave", onLeave);
+      }
     };
     draw();
   }
