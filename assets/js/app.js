@@ -1299,14 +1299,14 @@
       for (var i = 0; i < count; i++) {
         var ang = Math.random() * Math.PI * 2;
         var spd = (0.35 + Math.random() * 0.75) * 0.24;
-        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: Infinity, r: 2.0 });
+        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: Infinity, r: 1.7 });
       }
     }
     function resize() {
       w = cv.clientWidth; h = cv.clientHeight;
       cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var base = Math.max(100, Math.min(320, Math.round((w * h) / 6200)));
+      var base = Math.max(80, Math.min(260, Math.round((w * h) / 7500)));
       pts = [];
       addBase(base);
     }
@@ -1326,15 +1326,15 @@
     }
     function draw() {
       ctx.clearRect(0, 0, w, h);
-      var linkDist = 145;
+      var linkDist = 135;
       for (var i = pts.length - 1; i >= 0; i--) {
         var p = pts[i];
         // grab: pull nearby nodes toward the cursor
         if (mouse.on) {
           var gx = mouse.x - p.x, gy = mouse.y - p.y;
           var gd = Math.sqrt(gx * gx + gy * gy);
-          if (gd < 120 && gd > 1) {
-            var gf = 0.045 * (1 - gd / 120);
+          if (gd < 100 && gd > 1) {
+            var gf = 0.045 * (1 - gd / 100);
             p.vx += (gx / gd) * gf; p.vy += (gy / gd) * gf;
           }
         }
@@ -1371,9 +1371,9 @@
         ctx.fillStyle = g;
         ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 170, 0, Math.PI * 2); ctx.fill();
         // grab radius ring
-        ctx.strokeStyle = "rgba(150,170,255,0.16)";
+        ctx.strokeStyle = "rgba(150,170,255,0.20)";
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 95, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 80, 0, Math.PI * 2); ctx.stroke();
       }
       // links between particles
       for (var a = 0; a < pts.length; a++) {
@@ -1384,8 +1384,8 @@
           var dx = p1.x - p2.x, dy = p1.y - p2.y, d = Math.sqrt(dx * dx + dy * dy);
           if (d < linkDist) {
             var lf2 = p2.life === Infinity ? 1 : p2.life;
-            var alpha = 0.5 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
-            ctx.strokeStyle = "rgba(180,198,255," + alpha.toFixed(3) + ")";
+            var alpha = 0.42 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
+            ctx.strokeStyle = "rgba(185,200,255," + alpha.toFixed(3) + ")";
             ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
           }
