@@ -1299,7 +1299,7 @@
       for (var i = 0; i < count; i++) {
         var ang = Math.random() * Math.PI * 2;
         var spd = (0.35 + Math.random() * 0.75) * 0.24;
-        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: Infinity, r: 1.5 });
+        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: Infinity, r: 1.65 });
       }
     }
     function resize() {
@@ -1320,7 +1320,7 @@
         var off = Math.random() * 12;
         pts.push({
           x: x + Math.cos(a) * off, y: y + Math.sin(a) * off,
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, r: 2.3
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, r: 2.5
         });
       }
     }
@@ -1357,8 +1357,8 @@
           var dx = p1.x - p2.x, dy = p1.y - p2.y, d = Math.sqrt(dx * dx + dy * dy);
           if (d < linkDist) {
             var lf2 = p2.life === Infinity ? 1 : p2.life;
-            var alpha = 0.24 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
-            ctx.strokeStyle = "rgba(170,185,255," + alpha.toFixed(3) + ")";
+            var alpha = 0.45 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
+            ctx.strokeStyle = "rgba(185,200,255," + alpha.toFixed(3) + ")";
             ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
           }
