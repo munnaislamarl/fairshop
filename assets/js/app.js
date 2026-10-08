@@ -1323,7 +1323,8 @@
         var off = Math.random() * 12;
         pts.push({
           x: x + Math.cos(a) * off, y: y + Math.sin(a) * off,
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, r: 2.5
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, r: 2.5,
+          ox: x, oy: y, slowed: false
         });
       }
     }
@@ -1347,18 +1348,10 @@
           if (bv > 1.4) { var bk = 1.4 / bv; p.vx *= bk; p.vy *= bk; }
         } else {
           p.life -= 0.0005;
-          // shoots fast from the click, then settles into a slow, steady drift
-          p.vx *= 0.96; p.vy *= 0.96;
-          var spd2 = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-          var minV = 0.245;
-          if (spd2 < minV) {
-            if (spd2 < 0.01) {
-              var na = Math.random() * Math.PI * 2;
-              p.vx = Math.cos(na) * minV; p.vy = Math.sin(na) * minV;
-            } else {
-              var k = minV / spd2;
-              p.vx *= k; p.vy *= k;
-            }
+          // keep full speed until 160px from the click, then halve it once
+          var odx = p.x - p.ox, ody = p.y - p.oy;
+          if (!p.slowed && (odx * odx + ody * ody) >= 25600) {
+            p.vx *= 0.5; p.vy *= 0.5; p.slowed = true;
           }
           if (p.life <= 0) { pts.splice(i, 1); continue; }
         }
