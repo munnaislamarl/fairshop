@@ -1299,7 +1299,7 @@
     function addBase(count) {
       for (var i = 0; i < count; i++) {
         var ang = Math.random() * Math.PI * 2;
-        var spd = (0.35 + Math.random() * 0.75) * 0.24;
+        var spd = (0.35 + Math.random() * 0.75) * 0.168;
         pts.push({ x: Math.random() * w, y: Math.random() * h, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: Infinity, r: 1.7 });
       }
     }
@@ -1350,7 +1350,7 @@
           // shoots fast from the click, then settles into a slow, steady drift
           p.vx *= 0.96; p.vy *= 0.96;
           var spd2 = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-          var minV = 0.35;
+          var minV = 0.245;
           if (spd2 < minV) {
             if (spd2 < 0.01) {
               var na = Math.random() * Math.PI * 2;
