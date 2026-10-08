@@ -1272,14 +1272,68 @@
     var app = $("#app"); if (app) app.style.display = "none";
     var ls = $("#loginScreen"); if (ls) ls.hidden = false;
     var nameEl = $("#loginShopName");
-    if (nameEl) nameEl.textContent = cfg().LOGIN_TITLE || cfg().SHOP_NAME || "Fair Shop";
-    document.title = cfg().LOGIN_TITLE || cfg().SHOP_NAME || "Fair Shop";
+    var title = cfg().LOGIN_TITLE || cfg().SHOP_NAME || "Fair Shop";
+    if (nameEl) nameEl.textContent = title;
+    document.title = title;
+    startLoginFx();
     var u = $("#loginUser"); if (u) u.focus();
   }
   function hideLogin() {
+    stopLoginFx();
     var ls = $("#loginScreen"); if (ls) ls.hidden = true;
     var app = $("#app"); if (app) app.style.display = "";
   }
+
+  /* ---- login background particles ---- */
+  var loginRaf = null;
+  function startLoginFx() {
+    var cv = $("#loginFx");
+    if (!cv || !cv.getContext || loginRaf) return;
+    var ctx = cv.getContext("2d");
+    var w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var pts = [];
+    function resize() {
+      w = cv.clientWidth; h = cv.clientHeight;
+      cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var count = Math.max(24, Math.min(70, Math.round((w * h) / 26000)));
+      pts = [];
+      for (var i = 0; i < count; i++) {
+        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35 });
+      }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      for (var i = 0; i < pts.length; i++) {
+        var p = pts[i];
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > w) p.vx *= -1;
+        if (p.y < 0 || p.y > h) p.vy *= -1;
+        for (var j = i + 1; j < pts.length; j++) {
+          var q = pts[j], dx = p.x - q.x, dy = p.y - q.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 130) {
+            ctx.strokeStyle = "rgba(130,143,219," + (0.16 * (1 - d / 130)).toFixed(3) + ")";
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+          }
+        }
+        ctx.fillStyle = "rgba(200,210,255,.55)";
+        ctx.beginPath(); ctx.arc(p.x, p.y, 1.4, 0, Math.PI * 2); ctx.fill();
+      }
+      loginRaf = requestAnimationFrame(draw);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    cv._cleanup = function () { window.removeEventListener("resize", resize); };
+    draw();
+  }
+  function stopLoginFx() {
+    if (loginRaf) { cancelAnimationFrame(loginRaf); loginRaf = null; }
+    var cv = $("#loginFx");
+    if (cv && cv._cleanup) { cv._cleanup(); cv._cleanup = null; }
+  }
+  var EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
   function doLogin() {
     var username = $("#loginUser").value.trim();
     var password = $("#loginPass").value;
@@ -1287,7 +1341,7 @@
     err.textContent = "";
     if (!username || !password) { err.textContent = "ইউজারনেম ও পাসওয়ার্ড দিন"; return; }
     var btn = $("#loginBtn");
-    btn.disabled = true; btn.textContent = "লগইন হচ্ছে…";
+    btn.disabled = true; btn.textContent = "Signing in…";
     Api.callAt(controlUrl(), "login", { username: username, password: password }).then(function (res) {
       if (!res || res.ok === false) throw new Error((res && res.error) || "Login failed");
       S.user = res.user;
@@ -1307,7 +1361,7 @@
       }
       err.textContent = e.message;
     }).then(function () {
-      btn.disabled = false; btn.textContent = "লগইন / Login";
+      btn.disabled = false; btn.textContent = "Sign in";
     });
   }
   function logout() {
@@ -1356,6 +1410,13 @@
     $("#menuBtn").onclick = openSidebar;
     $("#logoutBtn").onclick = logout;
     $("#loginBtn").onclick = doLogin;
+    var eye = $("#loginEye");
+    if (eye) eye.onclick = function () {
+      var pw = $("#loginPass");
+      var show = pw.type === "password";
+      pw.type = show ? "text" : "password";
+      this.innerHTML = show ? EYE_OFF : EYE_ON;
+    };
     $("#loginPass").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
     $("#loginUser").addEventListener("keydown", function (e) { if (e.key === "Enter") $("#loginPass").focus(); });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });

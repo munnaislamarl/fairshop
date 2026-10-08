@@ -56,17 +56,40 @@
 
   <!-- Login -->
   <div id="loginScreen" class="login-screen" hidden>
-    <div class="login-card">
-      <div class="login-brand">
-        <div class="brand-mark">FS</div>
-        <strong id="loginShopName">Fair Shop</strong>
+    <canvas id="loginFx" class="login-fx"></canvas>
+    <div class="login-orb"></div>
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-topbar"></div>
+        <div class="login-form">
+          <div class="login-logo">
+            <div class="login-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+                <path d="M3 6h18"/>
+                <path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+            </div>
+          </div>
+          <div class="login-head">
+            <h1 id="loginShopName">Fair Shop</h1>
+            <p>Sign in to your account &middot; লগইন করুন</p>
+          </div>
+          <label class="login-label" for="loginUser">Username</label>
+          <input id="loginUser" class="login-input" type="text" autocomplete="username" placeholder="username" spellcheck="false">
+          <label class="login-label" for="loginPass">Password</label>
+          <div class="login-pass-wrap">
+            <input id="loginPass" class="login-input" type="password" autocomplete="current-password" placeholder="••••••••">
+            <button type="button" class="login-eye" id="loginEye" aria-label="Toggle password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div id="loginError" class="login-error"></div>
+          <button class="login-btn" id="loginBtn" type="button">Sign in</button>
+          <p class="login-hint">প্রথমবার ডিফল্ট — admin / admin123</p>
+        </div>
       </div>
-      <h2>লগইন / Login</h2>
-      <div class="field"><label>ইউজারনেম / Username</label><input id="loginUser" autocomplete="username" spellcheck="false"></div>
-      <div class="field"><label>পাসওয়ার্ড / Password</label><input id="loginPass" type="password" autocomplete="current-password"></div>
-      <div id="loginError" class="login-error"></div>
-      <button class="btn primary" id="loginBtn" style="width:100%">লগইন / Login</button>
-      <p class="login-hint">প্রথমবার ডিফল্ট — <b>admin / admin123</b> (পরে বদলে নিন)</p>
+      <p class="login-foot">Fair Shop &mdash; Sales &amp; Inventory Management<br><span>&copy; 2026 Fair Shop. All Rights Reserved.</span></p>
     </div>
   </div>
 
