@@ -1333,12 +1333,12 @@
       var linkDist = 135;
       for (var i = pts.length - 1; i >= 0; i--) {
         var p = pts[i];
-        // grab: pull nearby nodes toward the cursor
+        // mouse repels nearby nodes very gently (they drift away from the pointer)
         if (mouse.on) {
-          var gx = mouse.x - p.x, gy = mouse.y - p.y;
+          var gx = p.x - mouse.x, gy = p.y - mouse.y;
           var gd = Math.sqrt(gx * gx + gy * gy);
-          if (gd < 100 && gd > 1) {
-            var gf = 0.045 * (1 - gd / 100);
+          if (gd < 150 && gd > 1) {
+            var gf = 0.015 * (1 - gd / 150);
             p.vx += (gx / gd) * gf; p.vy += (gy / gd) * gf;
           }
         }
@@ -1348,10 +1348,10 @@
           if (bv > 1.4) { var bk = 1.4 / bv; p.vx *= bk; p.vy *= bk; }
         } else {
           p.life -= 0.0005;
-          // keep full speed until 160px from the click, then halve it once
+          // keep full speed until 160px from the click, then cut speed by 80%
           var odx = p.x - p.ox, ody = p.y - p.oy;
           if (!p.slowed && (odx * odx + ody * ody) >= 25600) {
-            p.vx *= 0.5; p.vy *= 0.5; p.slowed = true;
+            p.vx *= 0.1; p.vy *= 0.1; p.slowed = true;
           }
           if (p.life <= 0) { pts.splice(i, 1); continue; }
         }
