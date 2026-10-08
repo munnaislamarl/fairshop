@@ -1292,39 +1292,85 @@
     var ctx = cv.getContext("2d");
     var w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
     var pts = [];
+    var MAXP = 240;
+
+    function addBase(count) {
+      for (var i = 0; i < count; i++) {
+        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, life: Infinity });
+      }
+    }
     function resize() {
       w = cv.clientWidth; h = cv.clientHeight;
       cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var count = Math.max(24, Math.min(70, Math.round((w * h) / 26000)));
+      var base = Math.max(34, Math.min(90, Math.round((w * h) / 20000)));
       pts = [];
-      for (var i = 0; i < count; i++) {
-        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35 });
+      addBase(base);
+    }
+    // click on empty space -> burst of nodes that form a glowing web
+    function burst(x, y) {
+      for (var i = 0; i < 16; i++) {
+        if (pts.length > MAXP) break;
+        var a = (Math.PI * 2 * i) / 16 + Math.random() * .5;
+        var sp = .5 + Math.random() * 1.7;
+        pts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1 });
       }
     }
     function draw() {
       ctx.clearRect(0, 0, w, h);
-      for (var i = 0; i < pts.length; i++) {
+      var linkDist = 155;
+      for (var i = pts.length - 1; i >= 0; i--) {
         var p = pts[i];
         p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
-        for (var j = i + 1; j < pts.length; j++) {
-          var q = pts[j], dx = p.x - q.x, dy = p.y - q.y, d = Math.sqrt(dx * dx + dy * dy);
-          if (d < 130) {
-            ctx.strokeStyle = "rgba(130,143,219," + (0.16 * (1 - d / 130)).toFixed(3) + ")";
+        if (p.life === Infinity) {
+          if (p.x < 0 || p.x > w) p.vx *= -1;
+          if (p.y < 0 || p.y > h) p.vy *= -1;
+        } else {
+          p.life -= 0.006;
+          p.vx *= 0.994; p.vy *= 0.994;
+          if (p.life <= 0) { pts.splice(i, 1); continue; }
+        }
+      }
+      for (var a = 0; a < pts.length; a++) {
+        var p1 = pts[a];
+        var lf1 = p1.life === Infinity ? 1 : p1.life;
+        for (var b = a + 1; b < pts.length; b++) {
+          var p2 = pts[b];
+          var dx = p1.x - p2.x, dy = p1.y - p2.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < linkDist) {
+            var lf2 = p2.life === Infinity ? 1 : p2.life;
+            var alpha = 0.20 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
+            ctx.strokeStyle = "rgba(150,165,235," + alpha.toFixed(3) + ")";
             ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
           }
         }
-        ctx.fillStyle = "rgba(200,210,255,.55)";
-        ctx.beginPath(); ctx.arc(p.x, p.y, 1.4, 0, Math.PI * 2); ctx.fill();
+      }
+      for (var k = 0; k < pts.length; k++) {
+        var q = pts[k];
+        var lf = q.life === Infinity ? 1 : q.life;
+        ctx.fillStyle = "rgba(215,225,255," + (0.45 + 0.45 * lf).toFixed(3) + ")";
+        ctx.beginPath(); ctx.arc(q.x, q.y, 1.5, 0, Math.PI * 2); ctx.fill();
       }
       loginRaf = requestAnimationFrame(draw);
     }
+    function onDown(e) {
+      if (e.target.closest && e.target.closest(".login-card")) return;
+      var rect = cv.getBoundingClientRect();
+      var pt = e.touches && e.touches[0] ? e.touches[0] : e;
+      burst(pt.clientX - rect.left, pt.clientY - rect.top);
+    }
     resize();
     window.addEventListener("resize", resize);
-    cv._cleanup = function () { window.removeEventListener("resize", resize); };
+    var screen = $("#loginScreen");
+    if (screen) {
+      screen.addEventListener("mousedown", onDown);
+      screen.addEventListener("touchstart", onDown, { passive: true });
+    }
+    cv._cleanup = function () {
+      window.removeEventListener("resize", resize);
+      if (screen) { screen.removeEventListener("mousedown", onDown); screen.removeEventListener("touchstart", onDown); }
+    };
     draw();
   }
   function stopLoginFx() {
