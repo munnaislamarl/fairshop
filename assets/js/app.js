@@ -1335,12 +1335,18 @@
           if (p.y < 0 || p.y > h) p.vy *= -1;
         } else {
           p.life -= 0.0005;
-          // fast at the click, then decelerate the further it travels
-          p.vx *= 0.955; p.vy *= 0.955;
+          // shoots fast from the click, then settles into a slow, steady drift
+          p.vx *= 0.96; p.vy *= 0.96;
           var spd2 = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-          if (spd2 < 0.12) {
-            var na = Math.random() * Math.PI * 2, ns = 0.1 + Math.random() * 0.25;
-            p.vx = Math.cos(na) * ns; p.vy = Math.sin(na) * ns;
+          var minV = 0.35;
+          if (spd2 < minV) {
+            if (spd2 < 0.01) {
+              var na = Math.random() * Math.PI * 2;
+              p.vx = Math.cos(na) * minV; p.vy = Math.sin(na) * minV;
+            } else {
+              var k = minV / spd2;
+              p.vx *= k; p.vy *= k;
+            }
           }
           if (p.x < 0 || p.x > w) p.vx *= -1;
           if (p.y < 0 || p.y > h) p.vy *= -1;
