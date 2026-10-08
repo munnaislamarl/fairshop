@@ -1297,7 +1297,9 @@
 
     function addBase(count) {
       for (var i = 0; i < count; i++) {
-        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, life: Infinity, r: 1.6 });
+        var ang = Math.random() * Math.PI * 2;
+        var spd = 0.35 + Math.random() * 0.75;
+        pts.push({ x: Math.random() * w, y: Math.random() * h, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: Infinity, r: 1.6 });
       }
     }
     function resize() {
@@ -1310,7 +1312,7 @@
     }
     // click on empty space -> big burst of nodes that form a glowing web
     function burst(x, y) {
-      var n = 15;
+      var n = 12;
       for (var i = 0; i < n; i++) {
         if (pts.length > MAXP) break;
         var a = (Math.PI * 2 * i) / n + Math.random() * .5;
