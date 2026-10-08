@@ -1355,8 +1355,8 @@
           }
           if (p.life <= 0) { pts.splice(i, 1); continue; }
         }
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
+        if (p.x < 0) p.x += w; else if (p.x > w) p.x -= w;
+        if (p.y < 0) p.y += h; else if (p.y > h) p.y -= h;
       }
       // cursor light glow
       if (mouse.on) {
@@ -1383,7 +1383,9 @@
         var lf1 = p1.life === Infinity ? 1 : p1.life;
         for (var b = a + 1; b < pts.length; b++) {
           var p2 = pts[b];
-          var dx = p1.x - p2.x, dy = p1.y - p2.y, d = Math.sqrt(dx * dx + dy * dy);
+          var dx = p1.x - p2.x, dy = p1.y - p2.y;
+          if (Math.abs(dx) > w * 0.5 || Math.abs(dy) > h * 0.5) continue;
+          var d = Math.sqrt(dx * dx + dy * dy);
           if (d < linkDist) {
             var lf2 = p2.life === Infinity ? 1 : p2.life;
             var alpha = 0.42 * (1 - d / linkDist) * (0.3 + 0.7 * Math.min(lf1, lf2));
