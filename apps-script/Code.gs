@@ -21,7 +21,8 @@ var SHEETS = {
   SALE_ITEMS: 'SaleItems',
   PAYMENTS: 'Payments',
   SETTINGS: 'Settings',
-  USERS: 'Users'
+  USERS: 'Users',
+  REQUESTS: 'Requests'
 };
 
 var HEADERS = {
@@ -31,7 +32,8 @@ var HEADERS = {
   SaleItems: ['ID','SaleID','ItemID','ItemName','Qty','UnitPrice','LineTotal'],
   Payments:  ['ID','DateTime','CustomerID','CustomerName','Amount','Method','Note'],
   Settings:  ['Key','Value'],
-  Users:     ['ID','Username','Name','Role','Shops','PasswordHash','Active','Token','TokenExpiry','CreatedAt','UpdatedAt']
+  Users:     ['ID','Username','Name','Role','Shops','PasswordHash','Active','Token','TokenExpiry','CreatedAt','UpdatedAt'],
+  Requests:  ['ID','FullName','Email','Store','StoreLabel','Message','PasswordHash','Status','CreatedAt']
 };
 
 var DEFAULT_SETTINGS = {
@@ -327,6 +329,79 @@ function deleteUser(d) {
   return { ok: true };
 }
 
+/* ---- Access requests (from login page) ---- */
+function requestAccess(d) {
+  var fullName = String(d.FullName || '').trim();
+  var email = String(d.Email || '').trim().toLowerCase();
+  var store = String(d.Store || '').trim();
+  var password = String(d.Password || '');
+  var message = String(d.Message || '').trim();
+  if (!fullName) throw new Error('Full name required');
+  if (!email || email.indexOf('@') < 1) throw new Error('Valid email required');
+  if (!store) throw new Error('Store required');
+  if (password.length < 6) throw new Error('Password must be at least 6 characters');
+
+  var users = readAll(SHEETS.USERS);
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i].Username).toLowerCase() === email) throw new Error('এই email দিয়ে account আগেই আছে');
+  }
+  var rows = readAll(SHEETS.REQUESTS);
+  for (var j = 0; j < rows.length; j++) {
+    if (String(rows[j].Email).toLowerCase() === email && String(rows[j].Status).toLowerCase() === 'pending') {
+      throw new Error('এই email দিয়ে request আগেই দেওয়া আছে');
+    }
+  }
+  var rec = {
+    ID: uid(), FullName: fullName, Email: email, Store: store,
+    StoreLabel: d.StoreLabel || store, Message: message,
+    PasswordHash: hashPw(email, password), Status: 'Pending', CreatedAt: new Date()
+  };
+  appendObject(SHEETS.REQUESTS, rec);
+  var row = findById(SHEETS.REQUESTS, rec.ID);
+  if (row) setTextCell(SHEETS.REQUESTS, row.__row, 'PasswordHash', rec.PasswordHash);
+  return { ok: true };
+}
+
+function pubRequest(r) {
+  return {
+    id: r.ID, fullName: r.FullName, email: r.Email,
+    store: r.Store, storeLabel: r.StoreLabel || r.Store,
+    message: r.Message, status: r.Status, createdAt: r.CreatedAt
+  };
+}
+
+function listRequests(d) {
+  requireAdmin(d.token);
+  var rows = readAll(SHEETS.REQUESTS);
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i].Status).toLowerCase() !== 'approved') out.push(pubRequest(rows[i]));
+  }
+  return { ok: true, requests: out };
+}
+
+function approveRequest(d) {
+  requireAdmin(d.token);
+  var req = findById(SHEETS.REQUESTS, d.ID);
+  if (!req) throw new Error('Request not found');
+  var rec = {
+    ID: uid(), Username: String(req.Email).toLowerCase(), Name: req.FullName, Role: 'user',
+    Shops: String(req.Store || ''), PasswordHash: req.PasswordHash, Active: 'TRUE',
+    Token: '', TokenExpiry: '', CreatedAt: new Date(), UpdatedAt: new Date()
+  };
+  appendObject(SHEETS.USERS, rec);
+  var urow = findById(SHEETS.USERS, rec.ID);
+  if (urow) setTextCell(SHEETS.USERS, urow.__row, 'PasswordHash', rec.PasswordHash);
+  deleteObject(SHEETS.REQUESTS, d.ID);
+  return { ok: true };
+}
+
+function deleteRequest(d) {
+  requireAdmin(d.token);
+  deleteObject(SHEETS.REQUESTS, d.ID);
+  return { ok: true };
+}
+
 /* ---------------------------------------------------------------
  *  HTTP entry points
  * --------------------------------------------------------------- */
@@ -382,6 +457,10 @@ function route(action, data) {
     case 'listUsers':     return listUsers(data);
     case 'saveUser':      return saveUser(data);
     case 'deleteUser':    return deleteUser(data);
+    case 'requestAccess': return requestAccess(data);
+    case 'listRequests':  return listRequests(data);
+    case 'approveRequest':return approveRequest(data);
+    case 'deleteRequest': return deleteRequest(data);
     default:              return { ok: false, error: 'Unknown action: ' + action };
   }
 }

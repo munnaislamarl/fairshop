@@ -1097,11 +1097,94 @@
       '<div class="panel"><div class="panel-head"><h2>ইউজার তালিকা / Users</h2><div class="grow"></div>' +
       '<button class="btn primary" id="addUserBtn">＋ নতুন ইউজার / Add User</button></div>' +
       '<div class="table-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Shops</th><th>Status</th><th></th></tr></thead><tbody id="usersBody"><tr><td colspan="6" class="empty">লোড হচ্ছে…</td></tr></tbody></table></div></div>' +
+      '<div class="panel"><div class="panel-head"><h2>Pending Requests / নতুন রিকোয়েস্ট</h2><div class="grow"></div><button class="btn sm ghost" id="reqRefresh">⟳</button></div>' +
+      '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Store</th><th>Message</th><th></th></tr></thead><tbody id="reqBody"><tr><td colspan="5" class="empty">লোড হচ্ছে…</td></tr></tbody></table></div></div>' +
       '<div class="panel"><div class="panel-body" style="color:var(--muted);font-size:13px">' +
       "admin = সব দোকান দেখবে ও ইউজার বানাতে পারবে। user = শুধু বাছাই করা দোকান দেখবে, ইউজার পেজ দেখবে না।" +
       "</div></div>";
     $("#addUserBtn").onclick = function () { userForm(null); };
+    $("#reqRefresh").onclick = function () { loadAccessRequests(); };
     loadUsers();
+    loadAccessRequests();
+  }
+
+  function loadAccessRequests() {
+    Api.callAt(controlUrl(), "listRequests", { token: S.token }).then(function (res) {
+      if (!res || res.ok === false) throw new Error((res && res.error) || "Failed");
+      var rows = res.requests || [];
+      var tb = $("#reqBody"); if (!tb) return;
+      if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">কোনো রিকোয়েস্ট নেই</td></tr>'; return; }
+      tb.innerHTML = rows.map(function (r) {
+        return "<tr>" +
+          "<td><b>" + esc(r.fullName || "-") + "</b></td>" +
+          "<td>" + esc(r.email || "-") + "</td>" +
+          "<td>" + esc(r.storeLabel || r.store || "-") + "</td>" +
+          "<td>" + esc(r.message || "-") + "</td>" +
+          '<td style="white-space:nowrap"><button class="btn sm green" data-approve="' + esc(r.id) + '">Approve</button> <button class="btn sm red" data-delreq="' + esc(r.id) + '">Del</button></td>' +
+          "</tr>";
+      }).join("");
+      $$("[data-approve]", tb).forEach(function (b) {
+        b.onclick = function () {
+          var id = this.getAttribute("data-approve");
+          Api.callAt(controlUrl(), "approveRequest", { token: S.token, ID: id }).then(function () {
+            toast("অনুমোদিত — ইউজার তৈরি হয়েছে", "ok"); loadUsers(); loadAccessRequests();
+          }).catch(function (e) { toast(e.message, "err"); });
+        };
+      });
+      $$("[data-delreq]", tb).forEach(function (b) {
+        b.onclick = function () {
+          var id = this.getAttribute("data-delreq");
+          confirmDialog("রিকোয়েস্ট মুছবেন?", function () {
+            Api.callAt(controlUrl(), "deleteRequest", { token: S.token, ID: id }).then(function () { toast("মুছে ফেলা হয়েছে", "ok"); loadAccessRequests(); }).catch(function (e) { toast(e.message, "err"); });
+          });
+        };
+      });
+    }).catch(function (e) {
+      var tb = $("#reqBody"); if (tb) tb.innerHTML = '<tr><td colspan="5" class="empty">' + esc(e.message) + "</td></tr>";
+    });
+  }
+
+  function openRequestModal() {
+    var shops = allShops();
+    var storeOpts = '<option value="">Select store</option>' + shops.map(function (s) {
+      return '<option value="' + esc(s.id) + '">' + esc(s.name) + "</option>";
+    }).join("");
+    var body =
+      '<p style="color:var(--muted);font-size:13px;margin-bottom:14px">আপনার তথ্য দিন। Admin যাচাই করে অনুমোদন করলে আপনি এই email ও password দিয়ে লগইন করতে পারবেন।</p>' +
+      '<div class="form-grid">' +
+      '<div class="field"><label>Full name *</label><input id="rqName" placeholder="e.g. Md. Munna Islam"></div>' +
+      '<div class="field"><label>Work email *</label><input id="rqEmail" type="email" placeholder="e.g. mnmunna2@gmail.com"></div>' +
+      "</div>" +
+      '<div class="field"><label>Store *</label><select id="rqStore">' + storeOpts + "</select></div>" +
+      '<div class="field"><label>Choose a password *</label><input id="rqPass" type="text" placeholder="Minimum 6 characters"></div>' +
+      '<div class="field"><label>Message (optional)</label><input id="rqMsg" placeholder="Why do you need access?"></div>';
+    openModal("Request access", body, {
+      wide: true,
+      footer: '<button class="btn" data-close>Cancel</button><button class="btn green" id="rqSubmit">Submit request</button>',
+      onOpen: function () {
+        $("#rqSubmit").onclick = function () {
+          var name = $("#rqName").value.trim();
+          var email = $("#rqEmail").value.trim();
+          var storeEl = $("#rqStore");
+          var store = storeEl.value;
+          var storeLabel = storeEl.options[storeEl.selectedIndex] ? storeEl.options[storeEl.selectedIndex].text : "";
+          var pass = $("#rqPass").value;
+          if (!name) { toast("Full name দিন", "err"); return; }
+          if (!email || email.indexOf("@") < 1) { toast("সঠিক email দিন", "err"); return; }
+          if (!store) { toast("Store বাছুন", "err"); return; }
+          if (pass.length < 6) { toast("Password কমপক্ষে ৬ অক্ষর দিন", "err"); return; }
+          var btn = $("#rqSubmit"); btn.disabled = true; btn.textContent = "Sending…";
+          Api.callAt(controlUrl(), "requestAccess", { FullName: name, Email: email, Store: store, StoreLabel: storeLabel, Password: pass, Message: $("#rqMsg").value.trim() })
+            .then(function (res) {
+              if (!res || res.ok === false) throw new Error((res && res.error) || "Failed");
+              closeModal();
+              toast("Request পাঠানো হয়েছে — admin অনুমোদন করলে লগইন করতে পারবেন", "ok");
+            })
+            .catch(function (e) { toast(e.message, "err"); })
+            .then(function () { btn.disabled = false; btn.textContent = "Submit request"; });
+        };
+      }
+    });
   }
 
   function loadUsers() {
@@ -1534,6 +1617,8 @@
     $("#menuBtn").onclick = openSidebar;
     $("#logoutBtn").onclick = logout;
     $("#loginBtn").onclick = doLogin;
+    var rlink = $("#requestLink");
+    if (rlink) rlink.onclick = function (e) { e.preventDefault(); openRequestModal(); };
     var eye = $("#loginEye");
     if (eye) eye.onclick = function () {
       var pw = $("#loginPass");

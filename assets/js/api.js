@@ -12,7 +12,8 @@ window.Api = (function () {
     createSale: 1, deleteSale: 1,
     addPayment: 1, deletePayment: 1,
     saveSettings: 1,
-    login: 1, saveUser: 1, deleteUser: 1
+    login: 1, saveUser: 1, deleteUser: 1,
+    requestAccess: 1, approveRequest: 1, deleteRequest: 1
   };
 
   function isHttp(url) { return (url || "").indexOf("http") === 0; }

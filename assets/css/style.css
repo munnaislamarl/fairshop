@@ -126,6 +126,9 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 .login-btn:hover { background: #232a79; }
 .login-btn:disabled { opacity: .6; cursor: wait; }
 .login-hint { color: #9ca3af; font-size: 12px; text-align: center; margin: 12px 0 0; }
+.login-request-row { text-align: center; font-size: 13px; color: #6b7280; margin: 14px 0 0; }
+.login-request-row a { color: #283090; font-weight: 600; text-decoration: none; }
+.login-request-row a:hover { text-decoration: underline; }
 .login-foot { text-align: center; color: #c7cbe0; font-size: 12px; margin: 18px 0 0; line-height: 1.6; }
 .login-foot span { color: #8b90ad; }
 .role-tag { display: inline-block; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-size: 11.5px; color: var(--muted); }
@@ -246,7 +249,7 @@ textarea { resize: vertical; min-height: 70px; }
 
 /* ---------------- Modal ---------------- */
 .modal-mask {
-  position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 100;
+  position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 400;
   display: grid; place-items: center; padding: 16px; backdrop-filter: blur(2px);
 }
 .modal {
@@ -262,7 +265,7 @@ textarea { resize: vertical; min-height: 70px; }
 .modal-foot { padding: 14px 18px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: flex-end; }
 
 /* ---------------- Toasts ---------------- */
-.toast-root { position: fixed; right: 18px; bottom: 18px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+.toast-root { position: fixed; right: 18px; bottom: 18px; z-index: 500; display: flex; flex-direction: column; gap: 10px; }
 .toast {
   background: var(--sidebar); color: #fff; padding: 12px 16px; border-radius: 10px;
   box-shadow: var(--shadow-lg); font-size: 14px; max-width: 340px; animation: slide .2s ease;
