@@ -81,6 +81,8 @@
   function toDate(v) { if (!v) return null; if (v instanceof Date) return v; var d = new Date(v); return isNaN(d.getTime()) ? null : d; }
   function dayKey(v) { var d = toDate(v); return d ? d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) : ""; }
   function todayKey() { return dayKey(new Date()); }
+  function monthKey(v) { var d = toDate(v); return d ? d.getFullYear() + "-" + pad2(d.getMonth() + 1) : ""; }
+  function thisMonthKey() { return monthKey(new Date()); }
   function fmtDate(v) { var d = toDate(v); return d ? pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) + "/" + d.getFullYear() : "-"; }
   function fmtDateTime(v) { var d = toDate(v); return d ? fmtDate(d) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) : "-"; }
   function lowStockDefault() { return num(S.settings.LowStockDefault) || num(cfg().LOW_STOCK_DEFAULT) || 5; }
@@ -763,31 +765,11 @@
         "<td>" + payBadge(s.PaymentType) + "</td>" +
         '<td class="num">' + (num(s.DueAmount) > 0 ? '<span class="badge due">' + money(s.DueAmount) + "</span>" : "—") + "</td>" +
         '<td style="white-space:nowrap"><button class="btn sm" data-view="' + esc(s.ID) + '" title="View">View</button> ' +
-        '<button class="btn sm" data-print="' + esc(s.ID) + '" title="Print">Print</button> ' +
-        '<button class="btn sm" data-fixtype="' + esc(s.ID) + '" title="Change type">→ ' + (s.PaymentType === "Credit" ? "Cash" : "Due") + '</button> ' +
-        '<button class="btn sm red" data-delsale="' + esc(s.ID) + '" title="Delete">Del</button></td>' +
+        '<button class="btn sm" data-print="' + esc(s.ID) + '" title="Print">Print</button></td>' +
         "</tr>";
     }).join("");
     $$("[data-view]", tbody).forEach(function (b) { b.onclick = function () { viewSale(this.getAttribute("data-view")); }; });
     $$("[data-print]", tbody).forEach(function (b) { b.onclick = function () { var s = saleById(this.getAttribute("data-print")); if (s) printInvoice(s); }; });
-    $$("[data-fixtype]", tbody).forEach(function (b) {
-      b.onclick = function () {
-        var s = saleById(this.getAttribute("data-fixtype"));
-        var newType = s.PaymentType === "Credit" ? "Cash" : "Credit";
-        var lbl = newType === "Credit" ? "Due" : "Cash";
-        confirmDialog("এই বিক্রয়টি '" + lbl + "' হিসেবে পরিবর্তন করবেন? / Change " + s.InvoiceNo + " to " + lbl + "?", function () {
-          api("fixSaleType", { id: s.ID, type: newType }).then(function () { toast("পরিবর্তন হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
-        });
-      };
-    });
-    $$("[data-delsale]", tbody).forEach(function (b) {
-      b.onclick = function () {
-        var s = saleById(this.getAttribute("data-delsale"));
-        confirmDialog("বিক্রয়টি মুছে ফেলবেন? স্টক ফেরত যাবে। / Delete sale " + s.InvoiceNo + "?", function () {
-          api("deleteSale", { id: s.ID }).then(function () { toast("মুছে ফেলা হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
-        });
-      };
-    });
   }
 
   function saleById(id) { return S.sales.filter(function (s) { return String(s.ID) === String(id); })[0]; }
@@ -1024,7 +1006,12 @@
    * ============================================================ */
   function renderPayments(view) {
     var list = S.payments.slice().sort(function (a, b) { return new Date(b.DateTime) - new Date(a.DateTime); });
+    var mk = thisMonthKey();
     var totalToday = list.filter(function (p) { return dayKey(p.DateTime) === todayKey(); }).reduce(function (a, p) { return a + num(p.Amount); }, 0);
+    var totalMonth = list.filter(function (p) { return monthKey(p.DateTime) === mk; }).reduce(function (a, p) { return a + num(p.Amount); }, 0);
+    var dueToday = S.sales.filter(function (s) { return s.PaymentType === "Credit" && dayKey(s.DateTime) === todayKey(); }).reduce(function (a, s) { return a + num(s.DueAmount); }, 0);
+    var dueMonth = S.sales.filter(function (s) { return s.PaymentType === "Credit" && monthKey(s.DateTime) === mk; }).reduce(function (a, s) { return a + num(s.DueAmount); }, 0);
+    var totalDue = S.customers.reduce(function (a, c) { return a + num(c.Due); }, 0);
     var rows = list.length ? list.map(function (p) {
       return "<tr><td>" + fmtDateTime(p.DateTime) + "</td><td>" + esc(p.CustomerName || "-") + '</td><td class="num"><b>' + money(p.Amount) + "</b></td><td>" + esc(p.Method || "-") + "</td><td>" + esc(p.Note || "-") + '</td><td><button class="btn sm red" data-delp="' + esc(p.ID) + '">Del</button></td></tr>';
     }).join("") : '<tr><td colspan="6" class="empty">কোনো পেমেন্ট নেই / No payments</td></tr>';
@@ -1032,7 +1019,10 @@
     view.innerHTML =
       '<div class="grid cards" style="margin-bottom:18px">' +
       statCard("আজকের আদায় / Collected today", money0(totalToday), "", "green") +
-      statCard("মোট বাকি / Total due", money0(S.customers.reduce(function (a, c) { return a + num(c.Due); }, 0)), S.customers.filter(function (c) { return num(c.Due) > 0; }).length + " customers", "red") +
+      statCard("এ মাসের আদায় / Collected This Month", money0(totalMonth), "", "green") +
+      statCard("আজকের বাকি / Due Today", money0(dueToday), "", "amber") +
+      statCard("এ মাসের বাকি / Due This Month", money0(dueMonth), "", "amber") +
+      statCard("মোট বাকি / Total due", money0(totalDue), S.customers.filter(function (c) { return num(c.Due) > 0; }).length + " customers", "red") +
       "</div>" +
       '<div class="panel"><div class="panel-head"><h2>পেমেন্ট তালিকা / Payments</h2><button class="btn primary" id="addPayBtn">＋ পেমেন্ট / Add Payment</button></div>' +
       '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Customer</th><th class="num">Amount</th><th>Method</th><th>Note</th><th></th></tr></thead><tbody>' + rows + "</tbody></table></div></div>";
