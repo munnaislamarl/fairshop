@@ -727,7 +727,7 @@
       '<div class="field"><label>একক / Unit</label><input id="fUnit" value="' + esc(i.Unit || "pcs") + '"></div>' +
       '<div class="field"><label>কম স্টক সীমা / Low stock</label><input type="number" id="fLow" value="' + (i.LowStock !== undefined && i.LowStock !== "" ? num(i.LowStock) : lowStockDefault()) + '"></div>' +
       '<div class="field"><label>ক্রয়মূল্য / Purchase price</label><input type="number" step="0.01" id="fPur" value="' + num(i.PurchasePrice) + '"></div>' +
-      '<div class="field"><label>বিক্রয়মূল্য / Sale price</label><input type="number" step="0.01" id="fSale" value="' + num(i.SalePrice) + '"></div>' +
+      '<div class="field"><label>বিক্রয়মূল্য / Sale price *</label><input type="number" step="0.01" id="fSale" value="' + num(i.SalePrice) + '"></div>' +
       '<div class="field"><label>স্টক / Stock qty</label><input type="number" step="1" id="fStock" value="' + num(i.Stock) + '"></div>' +
       '<div class="field full"><label>নোট / Notes</label><input id="fNotes" value="' + esc(i.Notes || "") + '"></div>' +
       "</div>";
@@ -737,6 +737,7 @@
         $("#saveItemBtn").onclick = function () {
           var name = $("#fName").value.trim();
           if (!name) { toast("নাম দিতে হবে", "err"); return; }
+          if (num($("#fSale").value) <= 0) { toast("বিক্রয়মূল্য / Sale price দিতে হবে", "err"); return; }
           var payload = {
             ID: i.ID || "",
             Name: name,
@@ -1080,14 +1081,29 @@
   }
 
   function addPaymentPrompt() {
-    var opts = S.customers.map(function (c) { return '<option value="' + esc(c.ID) + '">' + esc(c.Name) + " (due " + money0(c.Due) + ")</option>"; }).join("");
-    var body = '<div class="field"><label>ক্রেতা / Customer *</label><select id="npCust"><option value="">— নির্বাচন করুন —</option>' + opts + "</select></div>" +
+    function renderCustOpts(q) {
+      q = (q || "").trim().toLowerCase();
+      var list = S.customers.filter(function (c) {
+        if (!q) return true;
+        return (String(c.Name) + " " + String(c.Phone) + " " + normPhone(c.Phone)).toLowerCase().indexOf(q) >= 0;
+      });
+      var opts = list.map(function (c) {
+        return '<option value="' + esc(c.ID) + '">' + esc(c.Name || "(নাম নেই)") + " — " + esc(fmtPhone(c.Phone)) + " (due " + money0(c.Due) + ")</option>";
+      }).join("");
+      var sel = $("#npCust");
+      if (sel) sel.innerHTML = '<option value="">— নির্বাচন করুন —</option>' + opts;
+    }
+    var body = '<div class="field"><label>ক্রেতা / Customer *</label>' +
+      '<input id="npCustSearch" placeholder="নাম / ফোন দিয়ে খুঁজুন..." autocomplete="off" style="margin-bottom:8px">' +
+      '<select id="npCust"><option value="">— নির্বাচন করুন —</option></select></div>' +
       '<div class="form-grid"><div class="field"><label>পরিমাণ / Amount *</label><input type="number" step="0.01" id="npAmt" value="0"></div>' +
       '<div class="field"><label>মাধ্যম / Method</label><select id="npMethod"><option>Cash</option><option>bkash</option><option>Nagad</option><option>Bank</option><option>Other</option></select></div></div>' +
       '<div class="field"><label>নোট / Note</label><input id="npNote"></div>';
     openModal("পেমেন্ট যোগ করুন / Add Payment", body, {
       footer: '<button class="btn" data-close>বাতিল</button><button class="btn green" id="npSave">জমা করুন</button>',
       onOpen: function () {
+        renderCustOpts("");
+        $("#npCustSearch").oninput = function () { renderCustOpts(this.value); };
         $("#npCust").onchange = function () { var c = findCustomer(this.value); $("#npAmt").value = c ? num(c.Due) : 0; };
         $("#npSave").onclick = function () {
           if (this.disabled) return;
