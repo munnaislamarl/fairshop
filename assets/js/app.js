@@ -444,11 +444,6 @@
         hint.textContent = "পুরনো ক্রেতা / Existing: " + (c.Name || "(নাম নেই)") + (due > 0 ? " • বাকি " + money(due) : " • বাকি নেই");
         hint.className = "cust-hint";
       }
-      // If this customer has outstanding due, default to Credit
-      if ((isFinite(num(c.Due)) ? num(c.Due) : 0) > 0) {
-        S.payType = "Credit";
-        updatePayUI();
-      }
     } else {
       if (hint) { hint.textContent = "নতুন ক্রেতা — সংরক্ষণে স্বয়ংক্রিয়ভাবে যুক্ত হবে"; hint.className = "cust-hint new"; }
     }
@@ -769,11 +764,22 @@
         '<td class="num">' + (num(s.DueAmount) > 0 ? '<span class="badge due">' + money(s.DueAmount) + "</span>" : "—") + "</td>" +
         '<td style="white-space:nowrap"><button class="btn sm" data-view="' + esc(s.ID) + '" title="View">View</button> ' +
         '<button class="btn sm" data-print="' + esc(s.ID) + '" title="Print">Print</button> ' +
+        '<button class="btn sm" data-fixtype="' + esc(s.ID) + '" title="Change type">→ ' + (s.PaymentType === "Credit" ? "Cash" : "Due") + '</button> ' +
         '<button class="btn sm red" data-delsale="' + esc(s.ID) + '" title="Delete">Del</button></td>' +
         "</tr>";
     }).join("");
     $$("[data-view]", tbody).forEach(function (b) { b.onclick = function () { viewSale(this.getAttribute("data-view")); }; });
     $$("[data-print]", tbody).forEach(function (b) { b.onclick = function () { var s = saleById(this.getAttribute("data-print")); if (s) printInvoice(s); }; });
+    $$("[data-fixtype]", tbody).forEach(function (b) {
+      b.onclick = function () {
+        var s = saleById(this.getAttribute("data-fixtype"));
+        var newType = s.PaymentType === "Credit" ? "Cash" : "Credit";
+        var lbl = newType === "Credit" ? "Due" : "Cash";
+        confirmDialog("এই বিক্রয়টি '" + lbl + "' হিসেবে পরিবর্তন করবেন? / Change " + s.InvoiceNo + " to " + lbl + "?", function () {
+          api("fixSaleType", { id: s.ID, type: newType }).then(function () { toast("পরিবর্তন হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
+        });
+      };
+    });
     $$("[data-delsale]", tbody).forEach(function (b) {
       b.onclick = function () {
         var s = saleById(this.getAttribute("data-delsale"));

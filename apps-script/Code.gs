@@ -472,6 +472,7 @@ function route(action, data) {
     case 'deleteCustomer':return { ok: deleteObject(SHEETS.CUSTOMERS, data.id) };
     case 'createSale':    return createSale(data);
     case 'deleteSale':    return deleteSale(data.id);
+    case 'fixSaleType':   return fixSaleType(data.id, data.type);
     case 'addPayment':    return addPayment(data);
     case 'deletePayment': return deletePayment(data.id);
     case 'saveSettings':  return saveSettings(data);
@@ -711,6 +712,46 @@ function deleteSale(id) {
     for (var i = lines.length - 1; i >= 0; i--) deleteObject(SHEETS.SALE_ITEMS, lines[i].ID);
     deleteObject(SHEETS.SALES, id);
     return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Correct a sale's payment type (e.g. a Cash sale wrongly saved as Credit).
+// Adjusts PaidAmount/DueAmount and the customer's Due accordingly.
+function fixSaleType(id, newType) {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(20000);
+  try {
+    var sale = findById(SHEETS.SALES, id);
+    if (!sale) throw new Error('Sale not found');
+    newType = (newType === 'Credit' || newType === 'Due') ? 'Credit' : 'Cash';
+    var cur = String(sale.PaymentType) === 'Credit' ? 'Credit' : 'Cash';
+    if (cur === newType) return { ok: true, id: id, unchanged: true };
+
+    var total = num(sale.Total);
+
+    if (newType === 'Cash') {
+      // was Credit -> Cash: clear this sale's due and remove it from the customer
+      var oldDue = num(sale.DueAmount);
+      setCell(SHEETS.SALES, sale.__row, 'PaymentType', 'Cash');
+      setCell(SHEETS.SALES, sale.__row, 'PaidAmount', total);
+      setCell(SHEETS.SALES, sale.__row, 'DueAmount', 0);
+      if (sale.CustomerID) {
+        var c1 = findById(SHEETS.CUSTOMERS, sale.CustomerID);
+        if (c1) setCell(SHEETS.CUSTOMERS, c1.__row, 'Due', Math.max(num(c1.Due) - oldDue, 0));
+      }
+    } else {
+      // was Cash -> Credit: full amount becomes due
+      setCell(SHEETS.SALES, sale.__row, 'PaymentType', 'Credit');
+      setCell(SHEETS.SALES, sale.__row, 'PaidAmount', 0);
+      setCell(SHEETS.SALES, sale.__row, 'DueAmount', total);
+      if (sale.CustomerID) {
+        var c2 = findById(SHEETS.CUSTOMERS, sale.CustomerID);
+        if (c2) setCell(SHEETS.CUSTOMERS, c2.__row, 'Due', num(c2.Due) + total);
+      }
+    }
+    return { ok: true, id: id };
   } finally {
     lock.releaseLock();
   }
