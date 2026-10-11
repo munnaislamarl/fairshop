@@ -328,7 +328,7 @@
     var cardsHtml = '<div class="grid cards" style="margin-bottom:18px">' +
       statCard("আজকের বিক্রয় / Today's Sales", money(todayTotal), todaySales.length + " bills", "blue") +
       statCard("নগদ / Cash", money(todayCash), "today", "green") +
-      statCard("বাকি বিক্রয় / Credit", money(todayCredit), "today", "amber") +
+      statCard("বাকি বিক্রয় / Due", money(todayCredit), "today", "amber") +
       statCard("মোট বাকি / Total Due", money(totalDue), (function(){var c=0; for(var i=0;i<S.customers.length;i++){if((isFinite(num(S.customers[i].Due))?num(S.customers[i].Due):0)>0)c++;} return c;})() + " customers with due", "red") +
       statCard("পণ্য / Items", String(S.items.length), lowItems.length + " low stock", lowItems.length ? "amber" : "green") +
       "</div>";
@@ -361,7 +361,7 @@
     var allCredit = S.sales.filter(function (s) { return s.PaymentType === "Credit"; }).reduce(function (a, s) { return a + num(s.Total); }, 0);
     makeChart("chartPay", {
       type: "doughnut",
-      data: { labels: ["Cash / নগদ", "Credit / বাকি"], datasets: [{ data: [allCash, allCredit], backgroundColor: ["#16a34a", "#d97706"] }] },
+      data: { labels: ["Cash / নগদ", "Due / বাকি"], datasets: [{ data: [allCash, allCredit], backgroundColor: ["#16a34a", "#d97706"] }] },
       options: { plugins: { legend: { position: "bottom" } }, maintainAspectRatio: false }
     });
   }
@@ -373,7 +373,7 @@
       '</div><div class="value">' + esc(val) + '</div><div class="sub">' + esc(sub || "") + "</div></div>";
   }
   function payBadge(t) {
-    return t === "Credit" ? '<span class="badge credit">Credit</span>' : '<span class="badge cash">Cash</span>';
+    return t === "Credit" ? '<span class="badge credit">Due</span>' : '<span class="badge cash">Cash</span>';
   }
   function stockBadge(i) {
     var st = num(i.Stock), th = num(i.LowStock) || lowStockDefault();
@@ -400,7 +400,7 @@
       '<div class="form-grid"><div class="field"><label>ফোন নম্বর / Phone *</label><input id="salePhone" inputmode="numeric" autocomplete="off" placeholder="01XXXXXXXXX"></div>' +
       '<div class="field"><label>নাম / Name (ঐচ্ছিক)</label><input id="saleName" autocomplete="off" placeholder="ক্রেতার নাম"></div></div>' +
       '<div id="phoneHint" class="cust-hint"></div>' +
-      '<div class="field"><label>পেমেন্ট / Payment</label><div class="pay-toggle"><button id="payCash" class="active">নগদ Cash</button><button id="payCredit" class="credit">বাকি Credit</button></div></div>' +
+      '<div class="field"><label>পেমেন্ট / Payment</label><div class="pay-toggle"><button id="payCash" class="active">নগদ Cash</button><button id="payCredit" class="credit">বাকি Due</button></div></div>' +
       '<div class="field"><label>ডিসকাউন্ট / Discount</label><input type="number" id="saleDiscount" min="0" step="0.01" value="0"></div>' +
       '<div class="field full"><label>নোট / Note</label><input id="saleNote" placeholder="ঐচ্ছিক / optional"></div>' +
       '<div id="totalsBox"></div>' +
@@ -727,7 +727,7 @@
       '<div class="panel"><div class="panel-head">' +
       '<input type="date" id="saleFrom" value="' + esc(saleFilter.from) + '" style="max-width:160px">' +
       '<input type="date" id="saleTo" value="' + esc(saleFilter.to) + '" style="max-width:160px">' +
-      '<select id="saleType" style="max-width:150px"><option value="">সব ধরন / All</option><option value="Cash"' + (saleFilter.type === "Cash" ? " selected" : "") + ">Cash</option><option value=\"Credit\"" + (saleFilter.type === "Credit" ? " selected" : "") + ">Credit</option></select>" +
+      '<select id="saleType" style="max-width:150px"><option value="">সব ধরন / All</option><option value="Cash"' + (saleFilter.type === "Cash" ? " selected" : "") + ">Cash</option><option value=\"Credit\"" + (saleFilter.type === "Credit" ? " selected" : "") + ">Due</option></select>" +
       '<div class="search grow"><input id="saleQ" placeholder="Invoice / ক্রেতা খুঁজুন" value="' + esc(saleFilter.q) + '"></div>' +
       '<button class="btn" id="expSales">Export CSV</button></div>' +
       '<div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th class="num">Items</th><th class="num">Total</th><th>Type</th><th class="num">Due</th><th></th></tr></thead><tbody id="salesBody"></tbody></table></div></div>';
@@ -1079,7 +1079,7 @@
       '<div class="grid cards" style="margin-bottom:16px">' +
       statCard("মোট বিক্রয় / Total sales", money(total), list.length + " bills", "blue") +
       statCard("নগদ / Cash", money(cash), "", "green") +
-      statCard("বাকি / Credit", money(credit), "", "amber") +
+      statCard("বাকি / Due", money(credit), "", "amber") +
       statCard("আদায় / Collected", money(collected), "", "green") +
       statCard("নতুন বাকি / Due added", money(dueAdded), "", "red") +
       "</div>" +
