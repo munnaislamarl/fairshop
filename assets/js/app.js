@@ -565,6 +565,7 @@
     btns.forEach(function (b) { b.disabled = true; });
 
     var existing = findCustomerByPhone(phone);
+    var prevDue = existing ? num(existing.Due) : 0;
     var prep;
     if (existing) {
       if (name && name !== existing.Name) {
@@ -597,7 +598,7 @@
         ID: res.saleId, InvoiceNo: res.invoiceNo, DateTime: new Date(),
         CustomerID: ctx.customerId, CustomerName: customerName, Phone: phone,
         SubTotal: subTotal, Discount: discount, Total: num(res.total),
-        PaymentType: payType, PaidAmount: num(res.paid), DueAmount: num(res.due),
+        PaymentType: payType, PaidAmount: num(res.paid), DueAmount: num(res.due), PrevDue: prevDue,
         items: payloadItems.map(function (l) {
           return { ItemName: l.itemName, Qty: num(l.qty), UnitPrice: num(l.unitPrice), LineTotal: num(l.qty) * num(l.unitPrice) };
         })
@@ -836,20 +837,30 @@
     view.innerHTML =
       '<div class="panel"><div class="panel-head">' +
       '<div class="search grow"><input id="custSearch" placeholder="নাম / ফোন খুঁজুন" autocomplete="off"></div>' +
+      '<select id="custType" style="max-width:180px">' +
+      '<option value="">সব ক্রেতা / All</option>' +
+      '<option value="due">বাকি আছে / With Due</option>' +
+      '<option value="nodue">বাকি নেই / No Due</option>' +
+      '</select>' +
       '<button class="btn primary" id="addCustBtn">＋ নতুন ক্রেতা / Add Customer</button></div>' +
       '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Address</th><th class="num">Due</th><th></th></tr></thead><tbody id="custBody"></tbody></table></div></div>';
     $("#custSearch").oninput = function () { drawCustomerRows(this.value); };
+    $("#custType").onchange = function () { drawCustomerRows($("#custSearch").value); };
     $("#addCustBtn").onclick = function () { customerForm(null); };
     drawCustomerRows("");
   }
 
   function drawCustomerRows(q) {
     q = (q || "").trim().toLowerCase();
+    var type = $("#custType") ? $("#custType").value : "";
     var tbody = $("#custBody");
     if (!tbody) return;
     var list = S.customers.filter(function (c) {
-      if (!q) return true;
-      return (String(c.Name) + " " + String(c.Phone) + " " + normPhone(c.Phone)).toLowerCase().indexOf(q) >= 0;
+      if (q && (String(c.Name) + " " + String(c.Phone) + " " + normPhone(c.Phone)).toLowerCase().indexOf(q) < 0) return false;
+      var due = num(c.Due);
+      if (type === "due" && due <= 0) return false;
+      if (type === "nodue" && due > 0) return false;
+      return true;
     });
     if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">কোনো ক্রেতা নেই / No customers</td></tr>'; return; }
     tbody.innerHTML = list.map(function (c) {
@@ -861,11 +872,13 @@
         '<td class="num">' + (due > 0 ? '<span class="badge due">' + money(due) + "</span>" : "—") + "</td>" +
         '<td style="white-space:nowrap">' +
         (due > 0 ? '<button class="btn sm green" data-pay="' + esc(c.ID) + '">৳ পেমেন্ট</button> ' : "") +
+        '<button class="btn sm" data-viewc="' + esc(c.ID) + '">View</button> ' +
         '<button class="btn sm" data-editc="' + esc(c.ID) + '">Edit</button> ' +
         '<button class="btn sm red" data-delc="' + esc(c.ID) + '">Del</button></td>' +
         "</tr>";
     }).join("");
     $$("[data-pay]", tbody).forEach(function (b) { b.onclick = function () { collectPayment(findCustomer(this.getAttribute("data-pay"))); }; });
+    $$("[data-viewc]", tbody).forEach(function (b) { b.onclick = function () { customerDetail(findCustomer(this.getAttribute("data-viewc"))); }; });
     $$("[data-editc]", tbody).forEach(function (b) { b.onclick = function () { customerForm(findCustomer(this.getAttribute("data-editc"))); }; });
     $$("[data-delc]", tbody).forEach(function (b) {
       b.onclick = function () {
@@ -883,6 +896,61 @@
         });
       };
     });
+  }
+
+  function customerDetail(c) {
+    if (!c) return;
+    var due = num(c.Due);
+    var creditSales = S.sales.filter(function (s) {
+      return String(s.CustomerID) === String(c.ID) && s.PaymentType === "Credit";
+    }).sort(function (a, b) { return new Date(b.DateTime) - new Date(a.DateTime); });
+
+    var rows = creditSales.length ? creditSales.map(function (s) {
+      return '<tr class="inv-row" data-invid="' + esc(s.ID) + '" style="cursor:pointer">' +
+        "<td>" + esc(s.InvoiceNo) + "</td>" +
+        "<td>" + fmtDate(s.DateTime) + "</td>" +
+        '<td class="num">' + money(num(s.Total)) + "</td>" +
+        '<td class="num" style="color:var(--red)">' + money(num(s.DueAmount)) + "</td></tr>";
+    }).join("") : '<tr><td colspan="4" class="empty">কোনো বাকি ইনভয়েস নেই / No credit invoices</td></tr>';
+
+    var body =
+      '<div style="padding:4px 2px 12px">' +
+      '<div style="font-size:16px;font-weight:700">' + esc(c.Name || "(নাম নেই)") + "</div>" +
+      '<div style="color:var(--muted);font-size:13px">' + esc(c.Phone ? fmtPhone(c.Phone) : "-") + "</div>" +
+      '<div style="margin-top:10px">মোট বাকি / Total Due: <b style="color:var(--red);font-size:16px">' + money(due) + "</b></div>" +
+      "</div>" +
+      '<div style="font-weight:700;padding:8px 2px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">বাকি ইনভয়েস / Credit Invoices</div>' +
+      '<div class="table-wrap" style="max-height:300px;overflow-y:auto"><table><thead><tr><th>Invoice</th><th>Date</th><th class="num">Total</th><th class="num">Due</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
+      '<div id="custDetailItems" style="margin-top:14px"></div>';
+
+    openModal("ক্রেতা বিস্তারিত / Customer Details", body, {
+      wide: true,
+      footer: '<button class="btn" data-close>বন্ধ করুন / Close</button>',
+      onOpen: function () {
+        $$(".inv-row", $("#modalBody")).forEach(function (tr) {
+          tr.onclick = function () { showInvoiceItems(this.getAttribute("data-invid")); };
+        });
+      }
+    });
+  }
+
+  function showInvoiceItems(saleId) {
+    var s = null;
+    S.sales.forEach(function (x) { if (String(x.ID) === String(saleId)) s = x; });
+    var box = $("#custDetailItems");
+    if (!box) return;
+    if (!s) { box.innerHTML = ""; return; }
+    var items = s.items || [];
+    var html = '<div style="font-weight:700;padding:8px 2px;border-bottom:1px solid var(--line)">' + esc(s.InvoiceNo) + " — " + fmtDate(s.DateTime) + "</div>";
+    if (!items.length) {
+      html += '<div class="empty">কোনো আইটেম নেই / No items found</div>';
+    } else {
+      html += '<div class="table-wrap"><table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Total</th></tr></thead><tbody>' +
+        items.map(function (it) {
+          return "<tr><td>" + esc(it.ItemName) + '</td><td class="num">' + num(it.Qty) + '</td><td class="num">' + money(it.UnitPrice) + '</td><td class="num">' + money(it.LineTotal) + "</td></tr>";
+        }).join("") + "</tbody></table></div>";
+    }
+    box.innerHTML = html;
   }
 
   function customerForm(c) {
@@ -1321,6 +1389,9 @@
     var shop = S.settings.ShopName || cfg().SHOP_NAME || "Fai Shop";
     var cust = s.CustomerID ? findCustomer(s.CustomerID) : null;
     var custPhone = s.Phone ? fmtPhone(s.Phone) : (cust && cust.Phone ? fmtPhone(cust.Phone) : "");
+    var prevDue = (typeof s.PrevDue === "number" && isFinite(s.PrevDue) && s.PrevDue > 0) ? s.PrevDue : 0;
+    var thisDue = num(s.DueAmount);
+    var totalDue = prevDue + thisDue;
     var rows = (s.items || []).map(function (it, i) {
       return "<tr><td>" + (i + 1) + "</td><td>" + esc(it.ItemName) + '</td><td class="num">' + num(it.Qty) + '</td><td class="num">' + money(it.UnitPrice) + '</td><td class="num">' + money(it.LineTotal) + "</td></tr>";
     }).join("");
@@ -1342,6 +1413,8 @@
       '<div class="grand"><span>Total</span><span>' + money(s.Total) + "</span></div>" +
       "<div><span>Paid</span><span>" + money(s.PaidAmount) + "</span></div>" +
       "<div><span>Due</span><span>" + money(s.DueAmount) + "</span></div>" +
+      (prevDue > 0 ? "<div><span>পূর্বের বাকি / Previous Due</span><span>" + money(prevDue) + "</span></div>" : "") +
+      (prevDue > 0 ? '<div class="grand" style="color:var(--red)"><span>মোট বাকি / Total Due</span><span>' + money(totalDue) + "</span></div>" : "") +
       "</div>" +
       '<div class="inv-foot">ধন্যবাদ! আবার আসবেন। / Thank you, please come again.<div style="margin-top:6px">Software: Fai Shop Dashboard</div></div>' +
       "</div>";
