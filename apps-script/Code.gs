@@ -27,10 +27,10 @@ var SHEETS = {
 
 var HEADERS = {
   Items:     ['ID','Code','Name','Category','Unit','PurchasePrice','SalePrice','Stock','LowStock','Notes','CreatedAt','UpdatedAt'],
-  Customers: ['ID','Name','Phone','Address','Due','Notes','CreatedAt','UpdatedAt'],
-  Sales:     ['ID','InvoiceNo','DateTime','CustomerID','CustomerName','SubTotal','Discount','Total','PaymentType','PaidAmount','DueAmount','Notes','CreatedBy'],
+  Customers: ['ID','Name','Phone','Address','Due','Notes','CreatedAt','UpdatedAt','ClientRef'],
+  Sales:     ['ID','InvoiceNo','DateTime','CustomerID','CustomerName','SubTotal','Discount','Total','PaymentType','PaidAmount','DueAmount','Notes','CreatedBy','ClientRef'],
   SaleItems: ['ID','SaleID','ItemID','ItemName','Qty','UnitPrice','LineTotal'],
-  Payments:  ['ID','DateTime','CustomerID','CustomerName','Amount','Method','Note'],
+  Payments:  ['ID','DateTime','CustomerID','CustomerName','Amount','Method','Note','ClientRef'],
   Settings:  ['Key','Value'],
   Users:     ['ID','Username','Name','Role','Shops','PasswordHash','Active','Token','TokenExpiry','CreatedAt','UpdatedAt'],
   Requests:  ['ID','FullName','Email','Store','StoreLabel','Message','PasswordHash','Status','CreatedAt']
@@ -95,8 +95,14 @@ function getSheet(name) {
   if (headers) {
     var firstRow = sh.getRange(1, 1, 1, headers.length).getValues()[0];
     var empty = firstRow.join('') === '';
-    var wrong = !empty && String(firstRow[0]) !== headers[0];
-    if (empty || wrong) {
+    var sameStart = String(firstRow[0]) === String(headers[0]);
+    var mismatch = false;
+    for (var c = 0; c < headers.length; c++) {
+      if (String(firstRow[c] === undefined || firstRow[c] === null ? '' : firstRow[c]) !== String(headers[c])) { mismatch = true; break; }
+    }
+    // (re)write the header row when empty, or when the schema was extended
+    // (same first column means it's the same table, just new columns added at the end)
+    if (empty || (sameStart && mismatch)) {
       sh.getRange(1, 1, 1, headers.length).setValues([headers]);
       sh.setFrozenRows(1);
     }
@@ -136,6 +142,16 @@ function appendObject(name, obj) {
 function findById(name, id) {
   var rows = readAll(name);
   for (var i = 0; i < rows.length; i++) if (String(rows[i].ID) === String(id)) return rows[i];
+  return null;
+}
+
+// idempotency helper: find a row previously created with the same client-generated ref
+function findByClientRef_(name, ref) {
+  if (!ref) return null;
+  var rows = readAll(name);
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].ClientRef && String(rows[i].ClientRef) === String(ref)) return rows[i];
+  }
   return null;
 }
 
@@ -525,22 +541,25 @@ function saveItem(d) {
  * --------------------------------------------------------------- */
 function saveCustomer(d) {
   var now = new Date();
-  var rec = {
-    Name: d.Name || '',
-    Phone: d.Phone || '',
-    Address: d.Address || '',
-    Notes: d.Notes || ''
-  };
   if (d.ID) {
-    rec.UpdatedAt = now;
-    updateObject(SHEETS.CUSTOMERS, d.ID, rec);
-  } else {
-    rec.ID = uid();
-    rec.Due = num(d.Due);
-    rec.CreatedAt = now;
-    rec.UpdatedAt = now;
-    appendObject(SHEETS.CUSTOMERS, rec);
+    updateObject(SHEETS.CUSTOMERS, d.ID, {
+      Name: d.Name || '', Phone: d.Phone || '', Address: d.Address || '', Notes: d.Notes || '', UpdatedAt: now
+    });
+    var r0 = findById(SHEETS.CUSTOMERS, d.ID);
+    if (r0) setTextCell(SHEETS.CUSTOMERS, r0.__row, 'Phone', d.Phone || '');
+    return { ok: true, id: d.ID };
   }
+  // idempotency: same clientRef must not create a second customer (e.g. on a retry)
+  if (d.clientRef) {
+    var dup = findByClientRef_(SHEETS.CUSTOMERS, d.clientRef);
+    if (dup) return { ok: true, id: dup.ID, duplicate: true };
+  }
+  var rec = {
+    ID: uid(), Name: d.Name || '', Phone: d.Phone || '', Address: d.Address || '',
+    Due: num(d.Due), Notes: d.Notes || '', ClientRef: d.clientRef || '',
+    CreatedAt: now, UpdatedAt: now
+  };
+  appendObject(SHEETS.CUSTOMERS, rec);
   // keep Phone as text so leading zeros survive
   var row = findById(SHEETS.CUSTOMERS, rec.ID);
   if (row) setTextCell(SHEETS.CUSTOMERS, row.__row, 'Phone', rec.Phone);
@@ -556,6 +575,18 @@ function createSale(d) {
   try {
     var lines = d.items || [];
     if (!lines.length) throw new Error('No items in the bill.');
+
+    // idempotency: if this exact bill was already saved (e.g. a retry after a slow
+    // response), return the existing sale instead of creating a duplicate.
+    if (d.clientRef) {
+      var dup = findByClientRef_(SHEETS.SALES, d.clientRef);
+      if (dup) {
+        return {
+          ok: true, duplicate: true, saleId: dup.ID, invoiceNo: dup.InvoiceNo,
+          total: num(dup.Total), paid: num(dup.PaidAmount), due: num(dup.DueAmount)
+        };
+      }
+    }
 
     var subTotal = 0;
     lines.forEach(function (it) { subTotal += num(it.qty) * num(it.unitPrice); });
@@ -586,7 +617,8 @@ function createSale(d) {
       PaidAmount: paid,
       DueAmount: due,
       Notes: d.notes || '',
-      CreatedBy: d.createdBy || ''
+      CreatedBy: d.createdBy || '',
+      ClientRef: d.clientRef || ''
     });
 
     lines.forEach(function (it) {
@@ -650,6 +682,10 @@ function deleteSale(id) {
 function addPayment(d) {
   var amount = num(d.Amount);
   if (amount <= 0) throw new Error('Amount must be greater than 0.');
+  if (d.clientRef) {
+    var dup = findByClientRef_(SHEETS.PAYMENTS, d.clientRef);
+    if (dup) return { ok: true, id: dup.ID, duplicate: true };
+  }
   var rec = {
     ID: uid(),
     DateTime: new Date(),
@@ -657,7 +693,8 @@ function addPayment(d) {
     CustomerName: d.CustomerName || '',
     Amount: amount,
     Method: d.Method || 'Cash',
-    Note: d.Note || ''
+    Note: d.Note || '',
+    ClientRef: d.clientRef || ''
   };
   appendObject(SHEETS.PAYMENTS, rec);
   if (d.CustomerID) {

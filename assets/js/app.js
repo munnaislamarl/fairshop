@@ -532,15 +532,16 @@
     credit.classList.toggle("active", S.payType === "Credit");
     var wrap = $("#paidWrap");
     if (wrap) wrap.style.display = S.payType === "Credit" ? "" : "none";
+    // Credit = বাকি: default paid stays 0 so the full amount is recorded as due.
+    // (Enter a partial amount manually if the customer pays something now.)
     if (S.payType === "Credit" && $("#salePaid")) {
-      var sub = cartSubtotal();
-      var disc = num($("#saleDiscount").value);
-      $("#salePaid").value = Math.max(sub - disc, 0);
+      $("#salePaid").value = 0;
     }
     updateTotals();
   }
 
   function saveSale(doPrint) {
+    if (S.savingSale) return;
     if (!S.cart.length) { toast("বিল খালি — পণ্য যোগ করুন।", "err"); return; }
     var phone = normPhone($("#salePhone").value);
     if (!phone) { toast("ফোন নম্বর দিতে হবে / Phone number is required", "err"); $("#salePhone").focus(); return; }
@@ -551,7 +552,16 @@
     var payType = S.payType;
     var paidAmount = S.payType === "Credit" ? num($("#salePaid").value) : 0;
     var notes = $("#saleNote").value;
+    var subTotal = payloadItems.reduce(function (a, l) { return a + num(l.qty) * num(l.unitPrice); }, 0);
+    var total = Math.max(subTotal - discount, 0);
+    var paidFinal = payType === "Cash" ? total : Math.min(Math.max(paidAmount, 0), total);
+    var dueFinal = total - paidFinal;
+    var customerName = name || (findCustomerByPhone(phone) ? findCustomerByPhone(phone).Name : "") || phone;
 
+    // unique ref → the server ignores duplicate submissions (prevents double entries on retry)
+    var clientRef = "sale_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
+
+    S.savingSale = true;
     var btns = $$("#saveSale, #savePrint");
     btns.forEach(function (b) { b.disabled = true; });
 
@@ -565,33 +575,47 @@
         prep = Promise.resolve(existing.ID);
       }
     } else {
-      prep = api("saveCustomer", { Name: name, Phone: phone }).then(function (res) { return res.id; });
+      prep = api("saveCustomer", { Name: name, Phone: phone, clientRef: "cust_" + clientRef }).then(function (res) { return res.id; });
     }
 
     prep.then(function (customerId) {
       return api("createSale", {
+        clientRef: clientRef,
         customerId: customerId,
-        customerName: name || (existing ? existing.Name : "") || phone,
+        customerName: customerName,
         items: payloadItems,
         discount: discount,
         paymentType: payType,
         paidAmount: paidAmount,
         notes: notes
-      });
-    }).then(function (res) {
+      }).then(function (res) { return { res: res, customerId: customerId }; });
+    }).then(function (ctx) {
+      var res = ctx.res;
       toast("বিক্রয় সংরক্ষিত — Invoice " + res.invoiceNo, "ok");
+
+      // build the sale locally so we can print instantly, without waiting for a refresh
+      var localSale = {
+        ID: res.saleId, InvoiceNo: res.invoiceNo, DateTime: new Date(),
+        CustomerID: ctx.customerId, CustomerName: customerName, Phone: phone,
+        SubTotal: subTotal, Discount: discount, Total: num(res.total),
+        PaymentType: payType, PaidAmount: num(res.paid), DueAmount: num(res.due),
+        items: payloadItems.map(function (l) {
+          return { ItemName: l.itemName, Qty: num(l.qty), UnitPrice: num(l.unitPrice), LineTotal: num(l.qty) * num(l.unitPrice) };
+        })
+      };
+
       S.cart = [];
       S.payType = "Cash";
-      return loadAll(true).then(function () {
-        setPage("newsale");
-        if (doPrint) {
-          var sale = S.sales.filter(function (s) { return String(s.ID) === String(res.saleId); })[0];
-          if (sale) printInvoice(sale);
-        }
-      });
+      setPage("newsale"); // clears the form right away
+
+      if (doPrint) printInvoice(localSale); // print immediately
+
+      // refresh real data in the background (silent)
+      loadAll(true).then(function () { if (S.page === "newsale") render(); });
     }).catch(function (e) {
       toast(e.message, "err");
     }).then(function () {
+      S.savingSale = false;
       btns.forEach(function (b) { b.disabled = false; });
     });
   }
@@ -846,9 +870,17 @@
     $$("[data-editc]", tbody).forEach(function (b) { b.onclick = function () { customerForm(findCustomer(this.getAttribute("data-editc"))); }; });
     $$("[data-delc]", tbody).forEach(function (b) {
       b.onclick = function () {
-        var c = findCustomer(this.getAttribute("data-delc"));
+        var btn = this;
+        var c = findCustomer(btn.getAttribute("data-delc"));
         confirmDialog("ক্রেতা মুছবেন? / Delete \"" + c.Name + "\"?", function () {
-          api("deleteCustomer", { id: c.ID }).then(function () { toast("মুছে ফেলা হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
+          if (btn.disabled) return;
+          btn.disabled = true;
+          api("deleteCustomer", { id: c.ID }).then(function () {
+            S.customers = S.customers.filter(function (x) { return String(x.ID) !== String(c.ID); });
+            toast("মুছে ফেলা হয়েছে", "ok");
+            render();
+            return loadAll(true);
+          }).catch(function (e) { toast(e.message, "err"); btn.disabled = false; });
         });
       };
     });
@@ -866,11 +898,26 @@
       footer: '<button class="btn" data-close>বাতিল</button><button class="btn primary" id="saveCustBtn">সংরক্ষণ</button>',
       onOpen: function () {
         $("#saveCustBtn").onclick = function () {
+          if (this.disabled) return;
           var phone = normPhone($("#cPhone").value);
           if (!phone) { toast("ফোন নম্বর দিতে হবে / Phone required", "err"); return; }
+          var btn = this;
+          btn.disabled = true;
           var payload = { ID: c.ID || "", Name: $("#cName").value.trim(), Phone: phone, Address: $("#cAddr").value.trim(), Notes: $("#cNotes").value.trim() };
-          if (!c.ID) payload.Due = num($("#cDue").value);
-          api("saveCustomer", payload).then(function () { closeModal(); toast("সংরক্ষিত", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
+          if (!c.ID) { payload.Due = num($("#cDue").value); payload.clientRef = "cust_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9); }
+          api("saveCustomer", payload).then(function (res) {
+            closeModal();
+            toast("সংরক্ষিত", "ok");
+            // optimistic local update → list refreshes instantly, no double-click window
+            if (c.ID) {
+              var ex = findCustomer(c.ID);
+              if (ex) { ex.Name = payload.Name; ex.Phone = payload.Phone; ex.Address = payload.Address; ex.Notes = payload.Notes; }
+            } else {
+              S.customers.push({ ID: res.id, Name: payload.Name, Phone: payload.Phone, Address: payload.Address, Due: payload.Due || 0, Notes: payload.Notes });
+            }
+            render();
+            return loadAll(true);
+          }).catch(function (e) { toast(e.message, "err"); btn.disabled = false; });
         };
       }
     });
@@ -887,10 +934,13 @@
       footer: '<button class="btn" data-close>বাতিল</button><button class="btn green" id="savePayBtn">৳ জমা করুন</button>',
       onOpen: function () {
         $("#savePayBtn").onclick = function () {
+          if (this.disabled) return;
           var amt = num($("#pAmt").value);
           if (amt <= 0) { toast("সঠিক পরিমাণ দিন", "err"); return; }
-          api("addPayment", { CustomerID: c.ID, CustomerName: c.Name, Amount: amt, Method: $("#pMethod").value, Note: $("#pNote").value.trim() })
-            .then(function () { closeModal(); toast("পেমেন্ট জমা হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
+          var btn = this;
+          btn.disabled = true;
+          api("addPayment", { CustomerID: c.ID, CustomerName: c.Name, Amount: amt, Method: $("#pMethod").value, Note: $("#pNote").value.trim(), clientRef: "pay_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9) })
+            .then(function () { closeModal(); toast("পেমেন্ট জমা হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); btn.disabled = false; });
         };
       }
     });
@@ -936,12 +986,15 @@
       onOpen: function () {
         $("#npCust").onchange = function () { var c = findCustomer(this.value); $("#npAmt").value = c ? num(c.Due) : 0; };
         $("#npSave").onclick = function () {
+          if (this.disabled) return;
           var c = findCustomer($("#npCust").value);
           if (!c) { toast("ক্রেতা নির্বাচন করুন", "err"); return; }
           var amt = num($("#npAmt").value);
           if (amt <= 0) { toast("সঠিক পরিমাণ দিন", "err"); return; }
-          api("addPayment", { CustomerID: c.ID, CustomerName: c.Name, Amount: amt, Method: $("#npMethod").value, Note: $("#npNote").value.trim() })
-            .then(function () { closeModal(); toast("জমা হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); });
+          var btn = this;
+          btn.disabled = true;
+          api("addPayment", { CustomerID: c.ID, CustomerName: c.Name, Amount: amt, Method: $("#npMethod").value, Note: $("#npNote").value.trim(), clientRef: "pay_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9) })
+            .then(function () { closeModal(); toast("জমা হয়েছে", "ok"); return loadAll(true); }).then(render).catch(function (e) { toast(e.message, "err"); btn.disabled = false; });
         };
       }
     });
@@ -1268,7 +1321,7 @@
   function printInvoice(s) {
     var shop = S.settings.ShopName || cfg().SHOP_NAME || "Fai Shop";
     var cust = s.CustomerID ? findCustomer(s.CustomerID) : null;
-    var custPhone = cust && cust.Phone ? fmtPhone(cust.Phone) : "";
+    var custPhone = s.Phone ? fmtPhone(s.Phone) : (cust && cust.Phone ? fmtPhone(cust.Phone) : "");
     var rows = (s.items || []).map(function (it, i) {
       return "<tr><td>" + (i + 1) + "</td><td>" + esc(it.ItemName) + '</td><td class="num">' + num(it.Qty) + '</td><td class="num">' + money(it.UnitPrice) + '</td><td class="num">' + money(it.LineTotal) + "</td></tr>";
     }).join("");
