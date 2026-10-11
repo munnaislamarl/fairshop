@@ -593,9 +593,7 @@ function createSale(d) {
     var discount = num(d.discount);
     var total = Math.max(subTotal - discount, 0);
     var type = d.paymentType === 'Credit' ? 'Credit' : 'Cash';
-    var paid = type === 'Cash' ? total : num(d.paidAmount);
-    if (paid > total) paid = total;
-    if (paid < 0) paid = 0;
+    var paid = type === 'Cash' ? total : Math.min(Math.max(num(d.paidAmount), 0), total);
     var due = total - paid;
 
     var saleId = uid();

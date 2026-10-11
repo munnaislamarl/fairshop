@@ -71,10 +71,12 @@
   }
   function currency() { return S.settings.Currency || cfg().CURRENCY || "৳"; }
   function money(v) {
-    return currency() + " " + num(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var n = isFinite(num(v)) ? num(v) : 0;
+    return currency() + " " + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function money0(v) {
-    return currency() + " " + num(v).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    var n = isFinite(num(v)) ? num(v) : 0;
+    return currency() + " " + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
   }
   function toDate(v) { if (!v) return null; if (v instanceof Date) return v; var d = new Date(v); return isNaN(d.getTime()) ? null : d; }
   function dayKey(v) { var d = toDate(v); return d ? d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) : ""; }
@@ -303,7 +305,7 @@
     var todayTotal = todaySales.reduce(function (a, s) { return a + num(s.Total); }, 0);
     var todayCash = todaySales.filter(function (s) { return s.PaymentType === "Cash"; }).reduce(function (a, s) { return a + num(s.Total); }, 0);
     var todayCredit = todaySales.filter(function (s) { return s.PaymentType === "Credit"; }).reduce(function (a, s) { return a + num(s.Total); }, 0);
-    var totalDue = S.customers.reduce(function (a, c) { return a + num(c.Due); }, 0);
+    var totalDue = S.customers.reduce(function (a, c) { return a + (isFinite(num(c.Due)) ? num(c.Due) : 0); }, 0);
     var lowItems = S.items.filter(function (i) { var th = num(i.LowStock) || lowStockDefault(); return num(i.Stock) <= th; });
 
     var recent = S.sales.slice(0, 8);
@@ -323,15 +325,14 @@
         "</td><td>" + stockBadge(i) + "</td></tr>";
     }).join("") : '<tr><td colspan="4" class="empty">সব পণ্যের স্টক ঠিক আছে / All stock OK</td></tr>';
 
-    view.innerHTML =
-      '<div class="grid cards" style="margin-bottom:18px">' +
+    var cardsHtml = '<div class="grid cards" style="margin-bottom:18px">' +
       statCard("আজকের বিক্রয় / Today's Sales", money(todayTotal), todaySales.length + " bills", "blue") +
       statCard("নগদ / Cash", money(todayCash), "today", "green") +
       statCard("বাকি বিক্রয় / Credit", money(todayCredit), "today", "amber") +
-      statCard("মোট বাকি / Total Due", money(totalDue), S.customers.length + " customers", "red") +
+      statCard("মোট বাকি / Total Due", money(totalDue), (function(){var c=0; for(var i=0;i<S.customers.length;i++){if((isFinite(num(S.customers[i].Due))?num(S.customers[i].Due):0)>0)c++;} return c;})() + " customers with due", "red") +
       statCard("পণ্য / Items", String(S.items.length), lowItems.length + " low stock", lowItems.length ? "amber" : "green") +
-      "</div>" +
-      '<div class="two-col">' +
+      "</div>";
+    view.innerHTML = cardsHtml + '<div class="two-col">' +
       '<div class="panel"><div class="panel-head"><h2>বিক্রয় ট্রেন্ড / Sales trend (last 7 days)</h2></div><div class="panel-body"><canvas id="chartTrend" height="150"></canvas></div></div>' +
       '<div class="panel"><div class="panel-head"><h2>পেমেন্ট ধরন / Payment type</h2></div><div class="panel-body"><canvas id="chartPay" height="150"></canvas></div></div>' +
       "</div>" +
@@ -366,8 +367,10 @@
   }
 
   function statCard(label, value, sub, accent) {
+    // ensure numeric due doesn't show empty in some locales; also force text
+    var val = (value === null || value === undefined) ? "৳ 0.00" : String(value);
     return '<div class="card stat accent-' + (accent || "blue") + '"><div class="label">' + esc(label) +
-      '</div><div class="value">' + esc(value) + '</div><div class="sub">' + esc(sub) + "</div></div>";
+      '</div><div class="value">' + esc(val) + '</div><div class="sub">' + esc(sub || "") + "</div></div>";
   }
   function payBadge(t) {
     return t === "Credit" ? '<span class="badge credit">Credit</span>' : '<span class="badge cash">Cash</span>';
@@ -439,8 +442,16 @@
     if (c) {
       if (nameEl && c.Name) nameEl.value = c.Name;
       if (hint) {
-        hint.textContent = "পুরনো ক্রেতা / Existing: " + (c.Name || "(নাম নেই)") + (num(c.Due) > 0 ? " • বাকি " + money(c.Due) : "");
+        var due = (isFinite(num(c.Due)) ? num(c.Due) : 0);
+        hint.textContent = "পুরনো ক্রেতা / Existing: " + (c.Name || "(নাম নেই)") + (due > 0 ? " • বাকি " + money(due) : " • বাকি নেই");
         hint.className = "cust-hint";
+      }
+      // If this customer has outstanding due, default to Credit and prefill paid amount
+      if ((isFinite(num(c.Due)) ? num(c.Due) : 0) > 0) {
+        S.payType = "Credit";
+        updatePayUI();
+        if ($("#salePaid")) $("#salePaid").value = 0;
+        updateTotals();
       }
     } else {
       if (hint) { hint.textContent = "নতুন ক্রেতা — সংরক্ষণে স্বয়ংক্রিয়ভাবে যুক্ত হবে"; hint.className = "cust-hint new"; }
