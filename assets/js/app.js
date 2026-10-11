@@ -385,12 +385,14 @@
   function renderNewSale(view) {
     view.innerHTML =
       '<div class="pos">' +
+      '<div class="pos-main">' +
+      '<div class="panel"><div class="panel-head"><h2>বিল / Cart</h2><button class="btn sm ghost" id="clearCart">পরিষ্কার</button></div><div class="panel-body" id="cartBox"></div></div>' +
       '<div class="panel"><div class="panel-head"><h2>পণ্য নির্বাচন / Select items</h2></div><div class="panel-body">' +
       '<div class="search" style="margin-bottom:12px"><input id="saleSearch" placeholder="নাম / কোড দিয়ে খুঁজুন..." autocomplete="off"></div>' +
       '<div class="item-grid" id="itemGrid"></div>' +
       "</div></div>" +
-      "<div>" +
-      '<div class="panel"><div class="panel-head"><h2>বিল / Cart</h2><button class="btn sm ghost" id="clearCart">পরিষ্কার</button></div><div class="panel-body" id="cartBox"></div></div>' +
+      "</div>" +
+      '<div class="pos-side">' +
       '<div class="panel"><div class="panel-head"><h2>চেকআউট / Checkout</h2></div><div class="panel-body">' +
       '<div class="form-grid"><div class="field"><label>ফোন নম্বর / Phone *</label><input id="salePhone" inputmode="numeric" autocomplete="off" placeholder="01XXXXXXXXX"></div>' +
       '<div class="field"><label>নাম / Name (ঐচ্ছিক)</label><input id="saleName" autocomplete="off" placeholder="ক্রেতার নাম"></div></div>' +
@@ -481,7 +483,7 @@
     var box = $("#cartBox");
     if (!box) return;
     if (!S.cart.length) {
-      box.innerHTML = '<div class="empty">বাম দিক থেকে পণ্য নির্বাচন করুন<br><small>Select items from the left</small></div>';
+      box.innerHTML = '<div class="empty">নিচের তালিকা থেকে পণ্য নির্বাচন করুন<br><small>Select items from the list below</small></div>';
       updateTotals();
       return;
     }
