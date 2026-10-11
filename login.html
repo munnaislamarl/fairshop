@@ -306,7 +306,7 @@
         <div class="error" id="loginError" role="alert" aria-live="polite"></div>
 
         <button class="btn" id="loginBtn" type="submit">Sign in</button>
-        <p class="hint">প্রথমবার ডিফল্ট — admin / admin123</p>
+        <p class="hint">প্রথমবার ডিফল্ট — admin@company.com / Admin@1432</p>
       </form>
     </section>
 
@@ -585,7 +585,7 @@
 
         // Demo authentication. Replace with a real API call if needed.
         window.setTimeout(function () {
-          if (user === "admin" && pass === "admin123") {
+          if (user === "admin@company.com" && pass === "Admin@1432") {
             setError("সফল! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে…", true);
             window.setTimeout(function () {
               window.location.href = "index.html";

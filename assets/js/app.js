@@ -401,8 +401,7 @@
       '<div class="field"><label>নাম / Name (ঐচ্ছিক)</label><input id="saleName" autocomplete="off" placeholder="ক্রেতার নাম"></div></div>' +
       '<div id="phoneHint" class="cust-hint"></div>' +
       '<div class="field"><label>পেমেন্ট / Payment</label><div class="pay-toggle"><button id="payCash" class="active">নগদ Cash</button><button id="payCredit" class="credit">বাকি Credit</button></div></div>' +
-      '<div class="form-grid"><div class="field"><label>ডিসকাউন্ট / Discount</label><input type="number" id="saleDiscount" min="0" step="0.01" value="0"></div>' +
-      '<div class="field" id="paidWrap" style="display:none"><label>পরিশোধ / Paid</label><input type="number" id="salePaid" min="0" step="0.01" value="0"></div></div>' +
+      '<div class="field"><label>ডিসকাউন্ট / Discount</label><input type="number" id="saleDiscount" min="0" step="0.01" value="0"></div>' +
       '<div class="field full"><label>নোট / Note</label><input id="saleNote" placeholder="ঐচ্ছিক / optional"></div>' +
       '<div id="totalsBox"></div>' +
       '<div class="toolbar" style="margin-top:14px">' +
@@ -421,7 +420,6 @@
     $("#payCash").onclick = function () { S.payType = "Cash"; updatePayUI(); };
     $("#payCredit").onclick = function () { S.payType = "Credit"; updatePayUI(); };
     $("#saleDiscount").addEventListener("input", updateTotals);
-    $("#salePaid").addEventListener("input", updateTotals);
 
     $("#saveSale").onclick = function () { saveSale(false); };
     $("#savePrint").onclick = function () { saveSale(true); };
@@ -446,12 +444,10 @@
         hint.textContent = "পুরনো ক্রেতা / Existing: " + (c.Name || "(নাম নেই)") + (due > 0 ? " • বাকি " + money(due) : " • বাকি নেই");
         hint.className = "cust-hint";
       }
-      // If this customer has outstanding due, default to Credit and prefill paid amount
+      // If this customer has outstanding due, default to Credit
       if ((isFinite(num(c.Due)) ? num(c.Due) : 0) > 0) {
         S.payType = "Credit";
         updatePayUI();
-        if ($("#salePaid")) $("#salePaid").value = 0;
-        updateTotals();
       }
     } else {
       if (hint) { hint.textContent = "নতুন ক্রেতা — সংরক্ষণে স্বয়ংক্রিয়ভাবে যুক্ত হবে"; hint.className = "cust-hint new"; }
@@ -526,8 +522,7 @@
     var sub = cartSubtotal();
     var disc = num($("#saleDiscount") ? $("#saleDiscount").value : 0);
     var total = Math.max(sub - disc, 0);
-    var paid = S.payType === "Cash" ? total : num($("#salePaid") ? $("#salePaid").value : 0);
-    if (paid > total) paid = total;
+    var paid = S.payType === "Cash" ? total : 0;
     var due = total - paid;
     box.innerHTML =
       '<div class="cart-total"><span>Subtotal / উপমোট</span><b>' + money(sub) + "</b></div>" +
@@ -541,13 +536,6 @@
     if (!cash) return;
     cash.classList.toggle("active", S.payType === "Cash");
     credit.classList.toggle("active", S.payType === "Credit");
-    var wrap = $("#paidWrap");
-    if (wrap) wrap.style.display = S.payType === "Credit" ? "" : "none";
-    // Credit = বাকি: default paid stays 0 so the full amount is recorded as due.
-    // (Enter a partial amount manually if the customer pays something now.)
-    if (S.payType === "Credit" && $("#salePaid")) {
-      $("#salePaid").value = 0;
-    }
     updateTotals();
   }
 
@@ -561,11 +549,11 @@
     var payloadItems = S.cart.map(function (l) { return { itemId: l.itemId, itemName: l.itemName, qty: num(l.qty), unitPrice: num(l.unitPrice) }; });
     var discount = num($("#saleDiscount").value);
     var payType = S.payType;
-    var paidAmount = S.payType === "Credit" ? num($("#salePaid").value) : 0;
+    var paidAmount = 0; // Credit = full বাকি (due); partial payment is collected later via Payments
     var notes = $("#saleNote").value;
     var subTotal = payloadItems.reduce(function (a, l) { return a + num(l.qty) * num(l.unitPrice); }, 0);
     var total = Math.max(subTotal - discount, 0);
-    var paidFinal = payType === "Cash" ? total : Math.min(Math.max(paidAmount, 0), total);
+    var paidFinal = payType === "Cash" ? total : 0;
     var dueFinal = total - paidFinal;
     var customerName = name || (findCustomerByPhone(phone) ? findCustomerByPhone(phone).Name : "") || phone;
 

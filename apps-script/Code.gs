@@ -60,11 +60,11 @@ function setup() {
   if (readAll(SHEETS.USERS).length === 0) {
     appendObject(SHEETS.USERS, {
       ID: uid(),
-      Username: 'admin',
+      Username: 'admin@company.com',
       Name: 'Admin',
       Role: 'admin',
       Shops: 'shop1,shop2',
-      PasswordHash: hashPw('admin', 'admin123'),
+      PasswordHash: hashPw('admin@company.com', 'Admin@1432'),
       Active: 'TRUE',
       Token: '',
       TokenExpiry: '',
@@ -72,7 +72,7 @@ function setup() {
       UpdatedAt: new Date()
     });
   }
-  Logger.log('Setup complete. Default login -> admin / admin123');
+  Logger.log('Setup complete. Default login -> admin@company.com / Admin@1432');
 }
 
 /* ---------------------------------------------------------------
@@ -265,8 +265,8 @@ function requireAdmin(token) {
 function ensureSeedAdmin() {
   if (readAll(SHEETS.USERS).length === 0) {
     var rec = {
-      ID: uid(), Username: 'admin', Name: 'Admin', Role: 'admin', Shops: 'shop1,shop2',
-      PasswordHash: hashPw('admin', 'admin123'), Active: 'TRUE', Token: '', TokenExpiry: '',
+      ID: uid(), Username: 'admin@company.com', Name: 'Admin', Role: 'admin', Shops: 'shop1,shop2',
+      PasswordHash: hashPw('admin@company.com', 'Admin@1432'), Active: 'TRUE', Token: '', TokenExpiry: '',
       CreatedAt: new Date(), UpdatedAt: new Date()
     };
     appendObject(SHEETS.USERS, rec);
