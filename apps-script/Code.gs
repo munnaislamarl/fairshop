@@ -208,6 +208,12 @@ function getSetting(key) {
   return s[key] !== undefined ? s[key] : DEFAULT_SETTINGS[key];
 }
 
+function setSetting(key, value) {
+  var patch = {};
+  patch[key] = value;
+  return saveSettings(patch);
+}
+
 /* ---------------------------------------------------------------
  *  Auth (users / roles / per-shop access)
  * --------------------------------------------------------------- */
@@ -477,6 +483,7 @@ function route(action, data) {
     case 'listRequests':  return listRequests(data);
     case 'approveRequest':return approveRequest(data);
     case 'deleteRequest': return deleteRequest(data);
+    case 'migrate':       return migrateCreditToDue();
     default:              return { ok: false, error: 'Unknown action: ' + action };
   }
 }
@@ -484,7 +491,42 @@ function route(action, data) {
 /* ---------------------------------------------------------------
  *  Reads
  * --------------------------------------------------------------- */
+// One-time data correction: older Credit sales were saved as fully paid
+// (PaidAmount = Total, DueAmount = 0). Now "Credit = Due", so fix them.
+function migrateCreditToDue() {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(20000);
+  try {
+    var sales = readAll(SHEETS.SALES);
+    var fixed = 0;
+    sales.forEach(function (s) {
+      // only fix the old buggy credit sales (paid > 0) — idempotent
+      if (String(s.PaymentType) === 'Credit' && num(s.PaidAmount) > 0) {
+        var total = num(s.Total);
+        setCell(SHEETS.SALES, s.__row, 'PaidAmount', 0);
+        setCell(SHEETS.SALES, s.__row, 'DueAmount', total);
+        if (s.CustomerID) {
+          var cust = findById(SHEETS.CUSTOMERS, s.CustomerID);
+          if (cust) setCell(SHEETS.CUSTOMERS, cust.__row, 'Due', num(cust.Due) + total);
+        }
+        fixed++;
+      }
+    });
+    return { ok: true, fixed: fixed };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function bootstrap() {
+  // auto-run the credit→due correction once (guarded by a settings flag)
+  try {
+    if (getSetting('MigratedCreditToDue') !== 'done') {
+      migrateCreditToDue();
+      setSetting('MigratedCreditToDue', 'done');
+    }
+  } catch (e) {}
+
   var sales = readAll(SHEETS.SALES);
   var saleItems = readAll(SHEETS.SALE_ITEMS);
   var bySale = {};
