@@ -633,6 +633,17 @@ function createSale(d) {
 
     var subTotal = 0;
     lines.forEach(function (it) { subTotal += num(it.qty) * num(it.unitPrice); });
+
+    // stock guard: never allow selling more than available stock
+    lines.forEach(function (it) {
+      if (it.itemId) {
+        var item = findById(SHEETS.ITEMS, it.itemId);
+        if (item && num(item.Stock) < num(it.qty)) {
+          throw new Error('স্টক নেই: ' + (it.itemName || it.itemId) + ' (আছে ' + num(item.Stock) + ')');
+        }
+      }
+    });
+
     var discount = num(d.discount);
     var total = Math.max(subTotal - discount, 0);
     var type = d.paymentType === 'Credit' ? 'Credit' : 'Cash';

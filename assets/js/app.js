@@ -459,7 +459,14 @@
     });
     var html = list.length ? list.map(function (i) {
       var st = num(i.Stock);
-      return '<div class="item-card' + (st <= 0 ? " out" : "") + '" data-add="' + esc(i.ID) + '">' +
+      if (st <= 0) {
+        return '<div class="item-card out" style="cursor:not-allowed">' +
+          '<div class="nm">' + esc(i.Name) + "</div>" +
+          '<div class="meta"><span>' + esc(i.Code || i.Category || "") + '</span><span style="color:var(--red)">Stock: 0 (শেষ)</span></div>' +
+          '<div class="meta"><span class="price">' + money(i.SalePrice) + "</span><span>" + esc(i.Unit || "") + "</span></div>" +
+          "</div>";
+      }
+      return '<div class="item-card" data-add="' + esc(i.ID) + '">' +
         '<div class="nm">' + esc(i.Name) + "</div>" +
         '<div class="meta"><span>' + esc(i.Code || i.Category || "") + '</span><span>Stock: ' + st + "</span></div>" +
         '<div class="meta"><span class="price">' + money(i.SalePrice) + "</span><span>" + esc(i.Unit || "") + "</span></div>" +
@@ -476,8 +483,17 @@
   function addToCart(id) {
     var item = findItem(id);
     if (!item) return;
+    var stock = num(item.Stock);
+    var inCart = 0;
     for (var i = 0; i < S.cart.length; i++) {
-      if (String(S.cart[i].itemId) === String(id)) { S.cart[i].qty += 1; renderCart(); return; }
+      if (String(S.cart[i].itemId) === String(id)) inCart = num(S.cart[i].qty);
+    }
+    if (stock <= 0) { toast("এই পণ্যের স্টক নেই — বিক্রি করা যাবে না।", "err"); return; }
+    if (inCart + 1 > stock) { toast("মাত্র " + stock + " " + (item.Unit || "pcs") + " স্টকে আছে।", "err"); return; }
+    if (inCart > 0) {
+      for (var j = 0; j < S.cart.length; j++) {
+        if (String(S.cart[j].itemId) === String(id)) { S.cart[j].qty += 1; renderCart(); return; }
+      }
     }
     S.cart.push({ itemId: item.ID, itemName: item.Name, qty: 1, unitPrice: num(item.SalePrice), unit: item.Unit || "" });
     renderCart();
@@ -503,7 +519,16 @@
     box.innerHTML = '<div class="table-wrap" style="max-height:none"><table><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th class="num">Total</th><th></th></tr></thead><tbody>' + rows + "</tbody></table></div>";
 
     $$("[data-qty]", box).forEach(function (inp) {
-      inp.onchange = function () { var i = num(this.getAttribute("data-qty")); S.cart[i].qty = Math.max(num(this.value), 1); renderCart(); };
+      inp.onchange = function () {
+        var idx = num(this.getAttribute("data-qty"));
+        var l = S.cart[idx];
+        var item = l ? findItem(l.itemId) : null;
+        var stock = item ? num(item.Stock) : 0;
+        var v = Math.max(num(this.value), 1);
+        if (item && v > stock) { v = stock; toast("স্টকে মাত্র " + stock + " " + (item.Unit || "pcs") + " আছে।", "err"); }
+        l.qty = v;
+        renderCart();
+      };
     });
     $$("[data-del]", box).forEach(function (btn) {
       btn.onclick = function () { S.cart.splice(num(this.getAttribute("data-del")), 1); renderCart(); };
@@ -677,11 +702,27 @@
     });
   }
 
+  function nextItemCode() {
+    var maxNum = 0, prefix = "", padLen = 0, found = false;
+    S.items.forEach(function (i) {
+      var code = String(i.Code || "").trim();
+      var m = code.match(/^(.*?)(\d+)$/);
+      if (m) {
+        var n = parseInt(m[2], 10);
+        if (n > maxNum) { maxNum = n; prefix = m[1]; padLen = m[2].length; found = true; }
+      }
+    });
+    var next = String(maxNum + 1);
+    while (next.length < padLen) next = "0" + next;
+    return (found ? prefix : "") + next;
+  }
+
   function itemForm(item) {
     var i = item || {};
+    var autoCode = item ? (i.Code || "") : nextItemCode();
     var body = '<div class="form-grid">' +
       '<div class="field full"><label>নাম / Name *</label><input id="fName" value="' + esc(i.Name || "") + '"></div>' +
-      '<div class="field"><label>কোড / Code</label><input id="fCode" value="' + esc(i.Code || "") + '"></div>' +
+      '<div class="field"><label>কোড / Code (auto)</label><input id="fCode" value="' + esc(autoCode) + '"></div>' +
       '<div class="field"><label>ক্যাটাগরি / Category</label><input id="fCat" value="' + esc(i.Category || "") + '"></div>' +
       '<div class="field"><label>একক / Unit</label><input id="fUnit" value="' + esc(i.Unit || "pcs") + '"></div>' +
       '<div class="field"><label>কম স্টক সীমা / Low stock</label><input type="number" id="fLow" value="' + (i.LowStock !== undefined && i.LowStock !== "" ? num(i.LowStock) : lowStockDefault()) + '"></div>' +
