@@ -306,7 +306,6 @@
         <div class="error" id="loginError" role="alert" aria-live="polite"></div>
 
         <button class="btn" id="loginBtn" type="submit">Sign in</button>
-        <p class="hint">প্রথমবার ডিফল্ট — admin@company.com / Admin@1432</p>
       </form>
     </section>
 
@@ -583,20 +582,10 @@
         btn.disabled = true;
         btn.textContent = "Signing in…";
 
-        // Demo authentication. Replace with a real API call if needed.
+        // The real login is handled inside index.html (via the backend).
+        // This standalone page just forwards to the main dashboard login.
         window.setTimeout(function () {
-          if (user === "admin@company.com" && pass === "Admin@1432") {
-            setError("সফল! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে…", true);
-            window.setTimeout(function () {
-              window.location.href = "index.html";
-            }, 650);
-          } else {
-            btn.disabled = false;
-            btn.textContent = "Sign in";
-            setError("ভুল ইউজারনেম অথবা পাসওয়ার্ড।");
-            passEl.focus();
-            passEl.select();
-          }
+          window.location.href = "index.html";
         }, 450);
       });
     })();
