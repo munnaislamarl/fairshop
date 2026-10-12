@@ -1409,10 +1409,10 @@
     }).join("");
     var body =
       '<div class="form-grid">' +
-      '<div class="field"><label>ইউজারনেম / Username *</label><input id="uName" value="' + esc(u.username || "") + '"' + (u.id ? " disabled" : "") + "></div>" +
+      '<div class="field"><label>ইউজারনেম / Username *</label><input id="uName" value="' + esc(u.username || "") + '"></div>' +
       '<div class="field"><label>নাম / Name</label><input id="uFull" value="' + esc(u.name || "") + '"></div>' +
       '<div class="field"><label>Role</label><select id="uRole"><option value="user"' + (u.role === "user" ? " selected" : "") + '>user</option><option value="admin"' + (u.role === "admin" ? " selected" : "") + ">admin</option></select></div>" +
-      '<div class="field"><label>' + (u.id ? "নতুন Password (খালি = অপরিবর্তিত)" : "Password *") + '</label><input id="uPass" type="text" placeholder="' + (u.id ? "••••••" : "password") + '"></div>' +
+      '<div class="field"><label>' + (u.id ? "নতুন Password (ইউজারনেম বদলালে অবশ্যই দিতে হবে)" : "Password *") + '</label><input id="uPass" type="text" placeholder="' + (u.id ? "••••••" : "password") + '"></div>' +
       "</div>" +
       '<div class="field"><label>দোকান / Shops (কোন দোকান দেখবে)</label>' + chips + "</div>" +
       '<div class="field"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="uActive" ' + (u.id && u.active === false ? "" : "checked") + ' style="width:auto"> সক্রিয় / Active</label></div>';

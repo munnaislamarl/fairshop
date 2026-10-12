@@ -315,10 +315,11 @@ function saveUser(d) {
   var active = (d.Active === false) ? 'FALSE' : (String(d.Active === undefined ? 'TRUE' : d.Active).toUpperCase() === 'FALSE' ? 'FALSE' : 'TRUE');
   if (d.ID) {
     var cur = findById(SHEETS.USERS, d.ID);
-    if (cur && String(cur.Username).toLowerCase() !== username.toLowerCase()) {
-      throw new Error('Username বদলানো যাবে না (নতুন করে বানান)');
+    var usernameChanged = cur && String(cur.Username).toLowerCase() !== username.toLowerCase();
+    if (usernameChanged && !d.Password) {
+      throw new Error('Username বদলালে নতুন password দিতে হবে');
     }
-    var rec = { Name: d.Name || '', Role: d.Role || 'user', Shops: shops, Active: active, UpdatedAt: new Date() };
+    var rec = { Username: username, Name: d.Name || '', Role: d.Role || 'user', Shops: shops, Active: active, UpdatedAt: new Date() };
     if (d.Password) rec.PasswordHash = hashPw(username, d.Password);
     updateObject(SHEETS.USERS, d.ID, rec);
     var r1 = findById(SHEETS.USERS, d.ID);
