@@ -55,41 +55,68 @@
   </div>
 
   <!-- Login -->
-  <div id="loginScreen" class="login-screen" hidden>
-    <canvas id="loginFx" class="login-fx"></canvas>
-    <div class="login-orb"></div>
+  <div id="loginScreen" class="login-root" hidden>
+    <div class="login-orb" aria-hidden="true"></div>
+    <canvas id="loginFx" class="login-fx" aria-hidden="true"></canvas>
+
     <div class="login-wrap">
       <div class="login-card">
-        <div class="login-topbar"></div>
-        <div class="login-form">
-          <div class="login-logo">
-            <div class="login-badge">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
-                <path d="M3 6h18"/>
-                <path d="M16 10a4 4 0 0 1-8 0"/>
-              </svg>
-            </div>
+        <div class="login-top"></div>
+        <form class="login-form" id="loginForm" novalidate>
+          <div class="login-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <path d="M3 6h18" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
           </div>
+
           <div class="login-head">
             <h1 id="loginShopName">Fair Shop</h1>
-            <p>Sign in to your account &middot; লগইন করুন</p>
+            <p>Sign in to your account</p>
           </div>
-          <label class="login-label" for="loginUser">Username</label>
-          <input id="loginUser" class="login-input" type="text" autocomplete="username" placeholder="username" spellcheck="false">
-          <label class="login-label" for="loginPass">Password</label>
-          <div class="login-pass-wrap">
-            <input id="loginPass" class="login-input" type="password" autocomplete="current-password" placeholder="••••••••">
-            <button type="button" class="login-eye" id="loginEye" aria-label="Toggle password">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
+
+          <div class="login-field">
+            <label class="login-label" for="loginUser">Username</label>
+            <input
+              id="loginUser"
+              class="login-input"
+              type="text"
+              placeholder="Username"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+            />
           </div>
-          <div id="loginError" class="login-error"></div>
-          <button class="login-btn" id="loginBtn" type="button">Sign in</button>
-          <p class="login-request-row">নতুন ইউজার? <a href="#" id="requestLink">Request access / অ্যাকসেস চাই</a></p>
-        </div>
+
+          <div class="login-field">
+            <label class="login-label" for="loginPass">Password</label>
+            <div class="login-pass">
+              <input
+                id="loginPass"
+                class="login-input"
+                type="password"
+                placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
+                autocomplete="current-password"
+              />
+              <button type="button" class="login-eye" id="loginEye" aria-label="Show password">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="loginError" class="login-error" role="alert" aria-live="polite"></div>
+
+          <button class="login-btn" id="loginBtn" type="submit">Sign in</button>
+
+          <button type="button" class="login-request" id="requestLink">Request access</button>
+        </form>
       </div>
-      <p class="login-foot">Fair Shop &mdash; Sales &amp; Inventory Management<br><span>&copy; 2026 Fair Shop. All Rights Reserved.</span></p>
+
+      <p class="login-footer">
+        Fair Shop<br />
+        <span>&copy; 2026 Fair Shop. All Rights Reserved.</span>
+      </p>
     </div>
   </div>
 

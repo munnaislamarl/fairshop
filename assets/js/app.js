@@ -1796,18 +1796,20 @@
     $("#refreshBtn").onclick = function () { toast("আপডেট হচ্ছে…", "info"); loadAll(); };
     $("#menuBtn").onclick = openSidebar;
     $("#logoutBtn").onclick = logout;
-    $("#loginBtn").onclick = doLogin;
+    var lform = $("#loginForm");
+    if (lform) lform.addEventListener("submit", function (e) { e.preventDefault(); doLogin(); });
     var rlink = $("#requestLink");
-    if (rlink) rlink.onclick = function (e) { e.preventDefault(); openRequestModal(); };
+    if (rlink) rlink.onclick = function () { openRequestModal(); };
     var eye = $("#loginEye");
     if (eye) eye.onclick = function () {
       var pw = $("#loginPass");
       var show = pw.type === "password";
       pw.type = show ? "text" : "password";
       this.innerHTML = show ? EYE_OFF : EYE_ON;
+      this.setAttribute("aria-label", show ? "Hide password" : "Show password");
     };
-    $("#loginPass").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
-    $("#loginUser").addEventListener("keydown", function (e) { if (e.key === "Enter") $("#loginPass").focus(); });
+    $("#loginPass").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); doLogin(); } });
+    $("#loginUser").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("#loginPass").focus(); } });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
 
     tickClock();
